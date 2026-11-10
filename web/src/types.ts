@@ -230,6 +230,88 @@ export interface MergeRequestResult {
   message: string;
 }
 
+// PayPal Subscriptions & Community Relief Guardian Types
+export interface GuardianRecentItem {
+  subscription_id: string;
+  name: string;
+  tier: string;
+  amount_minor: number;
+  currency: string;
+  created_at: string;
+}
+
+export interface CommunityResilienceBuffer {
+  campaign_id: string;
+  total_active_guardians: number;
+  monthly_runrate_minor: number;
+  monthly_runrate_formatted: string;
+  annual_projected_minor: number;
+  households_protected: number;
+  autonomous_runway_days: number;
+  resilience_score: number;
+  resilience_rating: string;
+  ai_predictive_statement: string;
+  tier_breakdown: {
+    community_guardian: number;
+    resilience_sentinel: number;
+    pool_anchor: number;
+    custom: number;
+  };
+  recent_guardians: GuardianRecentItem[];
+}
+
+export interface SubscriptionResult {
+  subscription_id: string;
+  plan_id: string;
+  status: string;
+  tier_name: string;
+  amount_minor: number;
+  currency: string;
+  approval_url: string;
+  message: string;
+}
+
+// Anonymized Geographic Need Cluster Map (Zero-PII Heatmap) Types
+export interface GeoCluster {
+  sector_id: string;
+  name: string;
+  sector_code: string;
+  description: string;
+  map_coordinates: {
+    cx: number;
+    cy: number;
+    radius: number;
+  };
+  total_requested_minor: number;
+  funded_minor: number;
+  unmet_minor: number;
+  funding_percentage: number;
+  status: 'fully_funded' | 'active_response' | 'critical_gap';
+  badge_label: string;
+  color_theme: 'mint' | 'sky' | 'amber';
+  active_items: string[];
+  payouts_disbursed_count: number;
+  zero_pii_hash: string;
+}
+
+export interface GeoClustersResponse {
+  campaign_id: string;
+  region_name: string;
+  total_sectors: number;
+  total_requested_minor: number;
+  total_funded_minor: number;
+  total_gap_minor: number;
+  overall_valley_funded_pct: number;
+  zero_pii_guarantee: {
+    privacy_model: string;
+    geo_precision: string;
+    pii_redaction_certified: boolean;
+    compliance: string;
+  };
+  clusters: GeoCluster[];
+}
+
+
 
 
 

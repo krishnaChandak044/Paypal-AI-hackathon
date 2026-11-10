@@ -3,14 +3,17 @@ import {
   AiDraftResult,
   BoardData,
   Campaign,
+  CommunityResilienceBuffer,
   DuplicateMatch,
   ExceptionCaseItem,
+  GeoClustersResponse,
   MergeRequestResult,
   PaymentItem,
   PoolBalance,
   RadarSummaryItem,
   RequestDuplicatesResult,
   ResourceItem,
+  SubscriptionResult,
   UnreconciledItem,
 } from './types';
 
@@ -330,6 +333,47 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({}),
     });
+  },
+
+  // PayPal Subscriptions & Predictive Pool Buffer AI
+  async getResilienceBuffer(campaignId: string): Promise<CommunityResilienceBuffer> {
+    return request(`/campaigns/${campaignId}/subscriptions/buffer`);
+  },
+
+  async createSubscription(
+    campaignId: string,
+    payload: {
+      tier_name: string;
+      amount_minor: number;
+      subscriber_name: string;
+      subscriber_email: string;
+    }
+  ): Promise<SubscriptionResult> {
+    return request(`/campaigns/${campaignId}/subscriptions/create`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async simulateGuardian(
+    campaignId: string,
+    tierName: string = 'Resilience Sentinel',
+    amountMinor: number = 2500,
+    donorName: string = 'Riverbend Valley Neighbor'
+  ): Promise<{ status: string; buffer: CommunityResilienceBuffer }> {
+    return request(`/campaigns/${campaignId}/subscriptions/simulate-guardian`, {
+      method: 'POST',
+      body: JSON.stringify({
+        tier_name: tierName,
+        amount_minor: amountMinor,
+        donor_name: donorName,
+      }),
+    });
+  },
+
+  // Anonymized Geographic Need Cluster Map (Zero-PII Heatmap)
+  async getGeoClusters(campaignId: string): Promise<GeoClustersResponse> {
+    return request(`/campaigns/${campaignId}/geo/clusters`);
   },
 };
 

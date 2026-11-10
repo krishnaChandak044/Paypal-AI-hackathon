@@ -2,7 +2,7 @@
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Engine
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def ensure_schema(engine: Engine, metadata: MetaData) -> None:
@@ -33,24 +33,15 @@ def ensure_schema(engine: Engine, metadata: MetaData) -> None:
             metadata.create_all(conn)
             conn.exec_driver_sql(f"PRAGMA user_version={SCHEMA_VERSION}")
 
-        elif current_version == 1:
-            metadata.tables["rate_buckets"].create(conn, checkfirst=True)
+        elif current_version in (1, 2, 3, 4):
+            if "rate_buckets" in metadata.tables:
+                metadata.tables["rate_buckets"].create(conn, checkfirst=True)
             if "receipt_audits" in metadata.tables:
                 metadata.tables["receipt_audits"].create(conn, checkfirst=True)
             if "payouts" in metadata.tables:
                 metadata.tables["payouts"].create(conn, checkfirst=True)
-            conn.exec_driver_sql(f"PRAGMA user_version={SCHEMA_VERSION}")
-
-        elif current_version == 2:
-            if "receipt_audits" in metadata.tables:
-                metadata.tables["receipt_audits"].create(conn, checkfirst=True)
-            if "payouts" in metadata.tables:
-                metadata.tables["payouts"].create(conn, checkfirst=True)
-            conn.exec_driver_sql(f"PRAGMA user_version={SCHEMA_VERSION}")
-
-        elif current_version == 3:
-            if "payouts" in metadata.tables:
-                metadata.tables["payouts"].create(conn, checkfirst=True)
+            if "subscriptions" in metadata.tables:
+                metadata.tables["subscriptions"].create(conn, checkfirst=True)
             conn.exec_driver_sql(f"PRAGMA user_version={SCHEMA_VERSION}")
 
         elif current_version != SCHEMA_VERSION:

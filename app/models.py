@@ -200,3 +200,22 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    subscription_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)  # PayPal sub ID: I-XXXXX
+    plan_id: Mapped[str] = mapped_column(String, nullable=False)  # PayPal Plan ID: P-XXXXX
+    subscriber_email: Mapped[str] = mapped_column(String, nullable=False)
+    subscriber_name: Mapped[str] = mapped_column(String, default="Community Guardian", nullable=False)
+    tier_name: Mapped[str] = mapped_column(String, default="Community Guardian", nullable=False)
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String, default="USD", nullable=False)
+    status: Mapped[str] = mapped_column(String, default="ACTIVE", nullable=False)
+    interval_unit: Mapped[str] = mapped_column(String, default="MONTH", nullable=False)
+    created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
+    last_payment_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+

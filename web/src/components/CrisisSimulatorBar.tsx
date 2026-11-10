@@ -97,12 +97,23 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
 
           <button
             type="button"
+            onClick={() => onNavigateTab('supporter')}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-brand-800 border border-sky-300 shadow-sm text-[11px]"
+            title="Inspect Community Relief Guardian Recurring Pools & Zero-PII Map"
+          >
+            <span>5. Guardian Buffer &amp; Map</span>
+          </button>
+
+          <span className="text-slate-300 hidden sm:inline">&bull;</span>
+
+          <button
+            type="button"
             onClick={() => onOpenJourney && onOpenJourney('84Y94709MX0315008')}
             className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-gradient-to-r from-[#0070BA] to-brand-600 hover:from-[#005ea6] hover:to-brand-700 text-white shadow-sm text-[11px] font-bold transition-all active:scale-95"
             title="Inspect Live PayPal Transaction Impact Journey & Zero-PII AI Story"
           >
             <Sparkles className="w-3.5 h-3.5 text-sky-200" />
-            <span>5. Trace PayPal Journey</span>
+            <span>6. Trace PayPal Journey</span>
           </button>
 
           {statusMessage && (

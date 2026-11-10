@@ -3,6 +3,7 @@ import { BoardData, BoardNeed, PayoutItem } from '../types';
 import { api } from '../api';
 import { HandDrawnCheck, CommunityShelterSvg } from './OrganicIllustration';
 import { PayPalPayoutModal } from './PayPalPayoutModal';
+import { GeographicClusterMap } from './GeographicClusterMap';
 import {
   AlertCircle,
   Clock,
@@ -16,6 +17,7 @@ import {
   CreditCard,
   Send,
   ExternalLink,
+  Map,
 } from 'lucide-react';
 
 interface CoordinationBoardProps {
@@ -31,6 +33,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
   onRefresh,
   onRequestTriage,
 }) => {
+  const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
   const [selectedNeed, setSelectedNeed] = useState<BoardNeed | null>(null);
   const [payoutNeed, setPayoutNeed] = useState<BoardNeed | null>(null);
   const [payoutsList, setPayoutsList] = useState<PayoutItem[]>([]);
@@ -203,21 +206,51 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
         </div>
       )}
 
-      {/* The Commitment & Gap Table */}
+      {/* The Commitment & Gap Table or Sector Map View */}
       <div className="bg-white rounded-4xl border border-slate-200/80 shadow-soft overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <CommunityShelterSvg className="w-5 h-5 text-brand-600" />
             <h3 className="font-serif text-lg font-bold text-slate-900">
               Approved Relief Needs ({needs.length})
             </h3>
           </div>
-          <span className="text-xs text-slate-400 font-medium">
-            Human approved &bull; Traceable to ledger
-          </span>
+
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white text-brand-700 shadow-xs border border-slate-200/60 font-bold'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Table View</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('map')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'map'
+                    ? 'bg-white text-brand-700 shadow-xs border border-slate-200/60 font-bold'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Map className="w-3.5 h-3.5 text-brand-500" />
+                <span>Sector Need Map (Zero-PII)</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {needs.length === 0 ? (
+        {viewMode === 'map' ? (
+          <div className="p-6">
+            <GeographicClusterMap campaignId={campaignId} />
+          </div>
+        ) : needs.length === 0 ? (
           <div className="text-center py-16 px-6 space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
               <FileSpreadsheet className="w-6 h-6" />

@@ -21,6 +21,7 @@ from .models import (
     RecipientAccess,
     RequestRevision,
     Resource,
+    Subscription,
     WebhookEvent,
 )
 from .payments import amount_string, apply_capture, paypal, paypal_request
@@ -36,6 +37,8 @@ from .routers import (
     recipient as recipient_router,
     requests,
     resources,
+    subscriptions,
+    geo,
 )
 from .schema import ensure_schema
 
@@ -63,6 +66,8 @@ app.include_router(receipts.router)
 app.include_router(recipient_router.router)
 app.include_router(paypal_router.router)
 app.include_router(payouts.router)
+app.include_router(subscriptions.router)
+app.include_router(geo.router)
 
 # Mount compiled modern frontend if built
 try:
@@ -101,6 +106,7 @@ __all__ = [
     "Receipt",
     "Job",
     "RateBucket",
+    "Subscription",
     "actor",
     "require",
     "campaign",

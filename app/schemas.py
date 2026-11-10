@@ -216,4 +216,76 @@ class SimulateDuplicateIn(BaseModel):
     equipment: Optional[str] = "portable emergency generator"
 
 
+# PayPal Subscriptions & Predictive Pool Buffer AI Schemas
+class CreateSubscriptionIn(BaseModel):
+    tier_name: Literal["Community Guardian", "Resilience Sentinel", "Pool Anchor", "Custom"] = "Resilience Sentinel"
+    amount_minor: int = Field(gt=0, description="Monthly recurring contribution in minor currency units (cents)")
+    subscriber_name: str = Field(default="Community Guardian", min_length=2, max_length=120)
+    subscriber_email: str = Field(min_length=5, max_length=150)
+
+
+class SubscriptionOut(BaseModel):
+    subscription_id: str
+    plan_id: str
+    status: str
+    tier_name: str
+    amount_minor: int
+    currency: str
+    approval_url: str
+    message: str
+
+
+class CommunityResilienceBufferOut(BaseModel):
+    campaign_id: str
+    total_active_guardians: int
+    monthly_runrate_minor: int
+    monthly_runrate_formatted: str
+    annual_projected_minor: int
+    households_protected: int
+    autonomous_runway_days: float
+    resilience_score: int
+    resilience_rating: str
+    ai_predictive_statement: str
+    tier_breakdown: Dict[str, int]
+    recent_guardians: List[Dict[str, Any]]
+
+
+class SimulateGuardianIn(BaseModel):
+    tier_name: Optional[Literal["Community Guardian", "Resilience Sentinel", "Pool Anchor"]] = "Resilience Sentinel"
+    amount_minor: Optional[int] = 2500
+    donor_name: Optional[str] = "Riverbend Valley Neighbor"
+
+
+# Anonymized Geographic Need Cluster Map (Zero-PII Heatmap) Schemas
+class GeoClusterOut(BaseModel):
+    sector_id: str
+    name: str
+    sector_code: str
+    description: str
+    map_coordinates: Dict[str, Any]
+    total_requested_minor: int
+    funded_minor: int
+    unmet_minor: int
+    funding_percentage: int
+    status: str
+    badge_label: str
+    color_theme: str
+    active_items: List[str]
+    payouts_disbursed_count: int
+    zero_pii_hash: str
+
+
+class GeoClustersResponseOut(BaseModel):
+    campaign_id: str
+    region_name: str
+    total_sectors: int
+    total_requested_minor: int
+    total_funded_minor: int
+    total_gap_minor: int
+    overall_valley_funded_pct: int
+    zero_pii_guarantee: Dict[str, Any]
+    clusters: List[GeoClusterOut]
+
+
+
 

@@ -7,6 +7,7 @@ import { FulfillmentOps } from './components/FulfillmentOps';
 import { RecipientPortal } from './components/RecipientPortal';
 import { CrisisSimulatorBar } from './components/CrisisSimulatorBar';
 import { PayPalImpactJourneyModal } from './components/PayPalImpactJourneyModal';
+import { GeographicClusterMap } from './components/GeographicClusterMap';
 import { api, getAuthToken, setAuthToken } from './api';
 import { BoardData, Campaign, PoolBalance } from './types';
 import { HeartInHandsSvg } from './components/OrganicIllustration';
@@ -117,6 +118,11 @@ export const App: React.FC = () => {
                 setShowJourneyModal(true);
               }}
             />
+
+            {/* Anonymized Geographic Need Cluster Map (Zero-PII Heatmap) */}
+            <section className="space-y-4">
+              <GeographicClusterMap campaignId={selectedCampaignId} />
+            </section>
 
             {/* Donor Transparency & Live Gap Preview */}
             <section className="pb-16 space-y-6">
