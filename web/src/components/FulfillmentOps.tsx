@@ -9,8 +9,6 @@ import {
   Plus,
   CheckCircle,
   FileCheck,
-  Building2,
-  DollarSign,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -28,18 +26,15 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
   const [exceptions, setExceptions] = useState<ExceptionCaseItem[]>([]);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Spend modal / receipt modal state
   const [selectedSpendId, setSelectedSpendId] = useState<string | null>(null);
   const [vendor, setVendor] = useState('');
   const [receiptRef, setReceiptRef] = useState('');
   const [occurredAt, setOccurredAt] = useState(new Date().toISOString().substring(0, 10));
 
-  // Resource entry state
   const [resDesc, setResDesc] = useState('');
   const [resQty, setResQty] = useState('');
   const [resSource, setResSource] = useState('');
 
-  // Exception entry state
   const [excReason, setExcReason] = useState('');
   const [excOwner, setExcOwner] = useState('');
 
@@ -74,7 +69,6 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
         receiptRef.trim(),
         occurredAt
       );
-      // Immediately reconcile
       await api.reconcileReceipt(res.id);
       setStatusMessage({
         type: 'success',
@@ -125,15 +119,15 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
   return (
     <div className="space-y-10 py-6">
       {/* Header */}
-      <div className="border-b border-warm-200/80 pb-6">
-        <div className="flex items-center gap-2 text-clay-600 font-semibold text-xs tracking-wider uppercase">
+      <div className="border-b border-slate-200/80 pb-6">
+        <div className="flex items-center gap-2 text-brand-600 font-semibold text-xs tracking-wider uppercase">
           <ReceiptText className="w-4 h-4" />
           <span>Offline Reality &amp; Reconciliation</span>
         </div>
-        <h2 className="font-serif text-3xl sm:text-4xl font-bold text-warm-900 mt-1">
+        <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 mt-1">
           Fulfillment, Receipts &amp; In-Kind Inventory
         </h2>
-        <p className="text-sm text-warm-500 max-w-2xl mt-1">
+        <p className="text-sm text-slate-500 max-w-2xl mt-1">
           Disasters happen offline. Track cash purchases made at local hardware stores and pharmacies,
           attach receipts for finance reconciliation, and log in-kind supplies alongside cash.
         </p>
@@ -143,12 +137,12 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
         <div
           className={`p-4 rounded-2xl text-xs font-medium flex items-center gap-2 ${
             statusMessage.type === 'success'
-              ? 'bg-sage-50 border border-sage-200 text-sage-900'
+              ? 'bg-mint-50 border border-mint-200 text-mint-900'
               : 'bg-red-50 border border-red-200 text-red-900'
           }`}
         >
           {statusMessage.type === 'success' ? (
-            <HandDrawnCheck className="w-4 h-4 text-sage-600 shrink-0" />
+            <HandDrawnCheck className="w-4 h-4 text-mint-600 shrink-0" />
           ) : (
             <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
           )}
@@ -160,41 +154,41 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left: Unreconciled Spending Queue */}
         <div className="lg:col-span-6 space-y-6">
-          <div className="bg-white rounded-4xl p-6 sm:p-7 border border-warm-200/80 shadow-warm space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-warm-100">
+          <div className="bg-white rounded-4xl p-6 sm:p-7 border border-slate-200/80 shadow-soft space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-clay-600" />
-                <h3 className="font-serif text-lg font-bold text-warm-900">
+                <FileCheck className="w-5 h-5 text-brand-600" />
+                <h3 className="font-serif text-lg font-bold text-slate-900">
                   Spending &amp; Receipt Audit Queue
                 </h3>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-warm-100 text-warm-700">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
                 {unreconciled.length} Pending
               </span>
             </div>
 
-            <p className="text-xs text-warm-500">
+            <p className="text-xs text-slate-500">
               Every spend event on the ledger must have an itemized receipt attached and approved by a finance member before final audit sign-off.
             </p>
 
-            <div className="divide-y divide-warm-100">
+            <div className="divide-y divide-slate-100">
               {unreconciled.length === 0 ? (
-                <div className="py-12 text-center text-xs text-warm-400 space-y-1">
-                  <CheckCircle className="w-8 h-8 text-sage-600 mx-auto" />
-                  <p className="font-semibold text-warm-700">All spending records reconciled</p>
+                <div className="py-12 text-center text-xs text-slate-400 space-y-1">
+                  <CheckCircle className="w-8 h-8 text-mint-600 mx-auto" />
+                  <p className="font-semibold text-slate-700">All spending records reconciled</p>
                   <p>No missing or pending receipts in this campaign.</p>
                 </div>
               ) : (
                 unreconciled.map((item) => (
                   <div key={item.ledger_id} className="py-3.5 flex items-center justify-between gap-4">
                     <div>
-                      <span className="text-xs font-mono text-warm-400 block">
+                      <span className="text-xs font-mono text-slate-400 block">
                         Ledger: #{item.ledger_id.substring(0, 8)}
                       </span>
-                      <span className="text-sm font-bold text-warm-900">
+                      <span className="text-sm font-bold text-slate-900">
                         ${(item.amount_minor / 100).toFixed(2)}
                       </span>
-                      <span className="text-[10px] ml-2 px-2 py-0.5 rounded-full bg-clay-50 text-clay-700 border border-clay-200 font-semibold uppercase">
+                      <span className="text-[10px] ml-2 px-2 py-0.5 rounded-full bg-sky-50 text-brand-700 border border-sky-200 font-semibold uppercase">
                         {item.receipt_status}
                       </span>
                     </div>
@@ -202,7 +196,7 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                     <button
                       type="button"
                       onClick={() => setSelectedSpendId(item.ledger_id)}
-                      className="px-3.5 py-1.5 rounded-xl bg-warm-100 hover:bg-clay-600 hover:text-white text-warm-800 text-xs font-bold transition-colors shadow-sm"
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-brand-600 hover:text-white text-slate-800 text-xs font-bold transition-colors shadow-sm"
                     >
                       Attach Receipt
                     </button>
@@ -214,14 +208,14 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
 
           {/* Receipt Modal */}
           {selectedSpendId && (
-            <div className="p-6 rounded-3xl bg-clay-50/70 border border-clay-200 space-y-4">
-              <h4 className="font-serif text-base font-bold text-warm-900">
+            <div className="p-6 rounded-3xl bg-sky-50/70 border border-sky-200 space-y-4">
+              <h4 className="font-serif text-base font-bold text-slate-900">
                 Attach Itemized Receipt for Ledger #{selectedSpendId.substring(0, 8)}
               </h4>
               <form onSubmit={handleAttachReceipt} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-warm-700 mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Merchant / Vendor Name
                     </label>
                     <input
@@ -230,11 +224,11 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                       value={vendor}
                       onChange={(e) => setVendor(e.target.value)}
                       required
-                      className="w-full text-xs p-2.5 rounded-xl bg-white border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                      className="w-full text-xs p-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-warm-700 mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Receipt Ref / Slip #
                     </label>
                     <input
@@ -243,13 +237,13 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                       value={receiptRef}
                       onChange={(e) => setReceiptRef(e.target.value)}
                       required
-                      className="w-full text-xs p-2.5 rounded-xl bg-white border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                      className="w-full text-xs p-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-warm-700 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                     Date of Purchase
                   </label>
                   <input
@@ -257,7 +251,7 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                     value={occurredAt}
                     onChange={(e) => setOccurredAt(e.target.value)}
                     required
-                    className="w-full text-xs p-2.5 rounded-xl bg-white border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                    className="w-full text-xs p-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
 
@@ -265,13 +259,13 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedSpendId(null)}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-warm-600 hover:bg-warm-100"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-clay-600 text-white hover:bg-clay-700 shadow-sm"
+                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-sm"
                   >
                     Submit &amp; Reconcile
                   </button>
@@ -283,16 +277,16 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
 
         {/* Right: In-Kind Resources & Exception Log */}
         <div className="lg:col-span-6 space-y-6">
-          {/* In-Kind Resources & Volunteer Capacity */}
-          <div className="bg-white rounded-4xl p-6 sm:p-7 border border-warm-200/80 shadow-warm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-warm-100">
+          {/* In-Kind Resources */}
+          <div className="bg-white rounded-4xl p-6 sm:p-7 border border-slate-200/80 shadow-soft space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-sage-700" />
-                <h3 className="font-serif text-lg font-bold text-warm-900">
+                <Boxes className="w-5 h-5 text-mint-700" />
+                <h3 className="font-serif text-lg font-bold text-slate-900">
                   In-Kind Stock &amp; Volunteer Capacity
                 </h3>
               </div>
-              <span className="text-xs text-warm-400 font-medium">
+              <span className="text-xs text-slate-400 font-medium">
                 {resources.length} Registered
               </span>
             </div>
@@ -304,7 +298,7 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                 value={resDesc}
                 onChange={(e) => setResDesc(e.target.value)}
                 required
-                className="flex-1 text-xs p-2.5 rounded-xl bg-warm-50 border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                className="flex-1 text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
               <input
                 type="number"
@@ -313,7 +307,7 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                 value={resQty}
                 onChange={(e) => setResQty(e.target.value)}
                 required
-                className="w-16 text-xs p-2.5 rounded-xl bg-warm-50 border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                className="w-16 text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
               <input
                 type="text"
@@ -321,11 +315,11 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                 value={resSource}
                 onChange={(e) => setResSource(e.target.value)}
                 required
-                className="w-32 text-xs p-2.5 rounded-xl bg-warm-50 border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                className="w-32 text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
               <button
                 type="submit"
-                className="px-3.5 py-2.5 rounded-xl bg-sage-700 hover:bg-sage-800 text-white text-xs font-bold shadow-sm transition-colors"
+                className="px-3.5 py-2.5 rounded-xl bg-mint-700 hover:bg-mint-800 text-white text-xs font-bold shadow-sm transition-colors"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -333,20 +327,20 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
 
             <div className="space-y-2 max-h-52 overflow-y-auto">
               {resources.length === 0 ? (
-                <p className="text-xs text-warm-400 py-4 text-center">
+                <p className="text-xs text-slate-400 py-4 text-center">
                   No in-kind supplies recorded yet.
                 </p>
               ) : (
                 resources.map((r) => (
                   <div
                     key={r.id}
-                    className="p-3 rounded-2xl bg-warm-50/70 border border-warm-200/70 flex items-center justify-between text-xs"
+                    className="p-3 rounded-2xl bg-slate-50/70 border border-slate-200/70 flex items-center justify-between text-xs"
                   >
                     <div>
-                      <span className="font-semibold text-warm-900 block">{r.description}</span>
-                      <span className="text-[10px] text-warm-500">Source: {r.source}</span>
+                      <span className="font-semibold text-slate-900 block">{r.description}</span>
+                      <span className="text-[10px] text-slate-500">Source: {r.source}</span>
                     </div>
-                    <span className="font-bold text-sage-800 px-2 py-1 rounded-lg bg-sage-100">
+                    <span className="font-bold text-mint-800 px-2.5 py-1 rounded-lg bg-mint-100 text-xs">
                       Qty: {r.quantity}
                     </span>
                   </div>
@@ -356,15 +350,15 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
           </div>
 
           {/* Exceptions Queue */}
-          <div className="bg-white rounded-4xl p-6 sm:p-7 border border-warm-200/80 shadow-warm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-warm-100">
+          <div className="bg-white rounded-4xl p-6 sm:p-7 border border-slate-200/80 shadow-soft space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <AlertOctagon className="w-5 h-5 text-clay-600" />
-                <h3 className="font-serif text-lg font-bold text-warm-900">
+                <AlertOctagon className="w-5 h-5 text-amber-600" />
+                <h3 className="font-serif text-lg font-bold text-slate-900">
                   Exception Desk ({exceptions.length})
                 </h3>
               </div>
-              <span className="text-xs text-warm-400 font-medium">Accountable Owners</span>
+              <span className="text-xs text-slate-400 font-medium">Accountable Owners</span>
             </div>
 
             <form onSubmit={handleAddException} className="space-y-2">
@@ -374,12 +368,12 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
                 value={excReason}
                 onChange={(e) => setExcReason(e.target.value)}
                 required
-                className="w-full text-xs p-2.5 rounded-xl bg-warm-50 border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30"
+                className="w-full text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-warm-800 hover:bg-warm-900 text-white shadow-sm transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white shadow-sm transition-colors"
                 >
                   Log Exception
                 </button>
@@ -388,22 +382,22 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
 
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {exceptions.length === 0 ? (
-                <p className="text-xs text-warm-400 py-4 text-center">
+                <p className="text-xs text-slate-400 py-4 text-center">
                   No active exceptions. All fulfillment paths proceeding normally.
                 </p>
               ) : (
                 exceptions.map((exc) => (
                   <div
                     key={exc.id}
-                    className="p-3 rounded-2xl bg-clay-50/50 border border-clay-200/70 flex items-center justify-between text-xs"
+                    className="p-3 rounded-2xl bg-amber-50/50 border border-amber-200/70 flex items-center justify-between text-xs"
                   >
                     <div>
-                      <span className="font-medium text-warm-900 block">{exc.reason}</span>
-                      <span className="text-[10px] text-warm-400 font-mono">
+                      <span className="font-medium text-slate-900 block">{exc.reason}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
                         Owner: {exc.owner_id}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-clay-100 text-clay-800 uppercase">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase">
                       {exc.status}
                     </span>
                   </div>

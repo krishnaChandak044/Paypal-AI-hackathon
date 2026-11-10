@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import { PoolBalance } from '../types';
 import { HeartInHandsSvg, HandDrawnSparkle, HandDrawnCheck } from './OrganicIllustration';
-import { ArrowUpRight, CheckCircle2, ShieldCheck, Heart, Sparkles, ExternalLink, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, ShieldCheck, Heart, ExternalLink, RefreshCw } from 'lucide-react';
 
 interface HeroDonorSectionProps {
   campaignId: string;
@@ -19,7 +19,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
   pool,
   onRefreshPool,
 }) => {
-  const [selectedAmount, setSelectedAmount] = useState<number>(2500); // in minor units ($25.00)
+  const [selectedAmount, setSelectedAmount] = useState<number>(2500); // minor units ($25.00)
   const [customAmount, setCustomAmount] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderResult, setOrderResult] = useState<{
@@ -63,7 +63,6 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
       });
 
       if (approveLink) {
-        // Open PayPal Sandbox in a new tab for genuine buyer approval
         window.open(approveLink, '_blank', 'noopener,noreferrer');
       }
     } catch (err: any) {
@@ -94,147 +93,146 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
   const spentDollars = pool ? (pool.spent_minor / 100).toFixed(2) : '0.00';
 
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-14 lg:pb-24">
-      {/* Gentle organic background glow */}
-      <div className="absolute top-0 right-1/4 -z-10 w-96 h-96 bg-clay-100/50 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-10 -z-10 w-80 h-80 bg-sage-100/60 rounded-full blur-3xl pointer-events-none" />
+    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-12 lg:pb-20">
+      {/* Gentle pastel background aura */}
+      <div className="absolute top-0 right-1/4 -z-10 w-96 h-96 bg-sky-100/60 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-10 -z-10 w-80 h-80 bg-lavender-100/50 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Main Grid: Story on Left, Single Clear Donate Card on Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
           
           {/* Left Column: Human Story & Real Community Photo */}
-          <div className="lg:col-span-7 space-y-8">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-clay-50 border border-clay-200 text-clay-800 text-xs font-semibold">
-              <HandDrawnSparkle className="w-3.5 h-3.5 text-clay-600" />
+          <div className="lg:col-span-7 space-y-7">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-brand-700 text-xs font-semibold">
+              <HandDrawnSparkle className="w-3.5 h-3.5 text-brand-500" />
               <span>Active Response &bull; Pine Creek &amp; Riverbend Valley</span>
             </div>
 
             <div className="space-y-4">
-              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-warm-900 leading-[1.15]">
+              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-slate-900 leading-[1.15]">
                 Immediate help,{' '}
-                <span className="organic-underline font-medium text-clay-700">
+                <span className="organic-underline font-medium text-brand-600">
                   funded before
                 </span>{' '}
                 it is promised.
               </h1>
-              <p className="text-base sm:text-lg text-warm-600 leading-relaxed font-normal max-w-2xl">
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl">
                 When flash floods hit local families, community organizers allocate urgent aid from a verified, pre-funded emergency pool. Every purchase is tracked, every need is reviewed by humans, and donor dollars go straight to accountable essentials.
               </p>
             </div>
 
             {/* Genuine Community Photography */}
-            <div className="relative rounded-3xl overflow-hidden shadow-warm-lg border border-warm-200/80 group">
+            <div className="relative rounded-3xl overflow-hidden shadow-soft-lg border border-slate-200/90 group">
               <img
                 src="https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1200&q=80"
                 alt="Community volunteers packing food boxes and essential supplies for flood-affected families"
                 className="w-full h-72 sm:h-80 object-cover object-center group-hover:scale-102 transition-transform duration-700"
                 loading="eager"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-warm-900/70 via-warm-900/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/20 to-transparent" />
               <div className="absolute bottom-5 left-5 right-5 text-white flex items-end justify-between">
                 <div>
                   <p className="text-sm font-semibold tracking-wide">
                     Volunteer Aid Staging &bull; Valley Community Center
                   </p>
-                  <p className="text-xs text-warm-200">
+                  <p className="text-xs text-slate-200">
                     Direct distribution of water, baby formula, and clean clothing
                   </p>
                 </div>
                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium border border-white/30">
-                  <ShieldCheck className="w-3.5 h-3.5 text-sage-200" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-mint-200" />
                   <span>Verified Organization</span>
                 </div>
               </div>
             </div>
 
             {/* Core Human Principles */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-2xl bg-white border border-warm-200/80 shadow-sm space-y-1">
-                <div className="text-clay-600 font-serif font-semibold text-sm flex items-center gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-soft space-y-1">
+                <div className="text-brand-600 font-serif font-semibold text-sm flex items-center gap-1.5">
                   <HeartInHandsSvg className="w-4 h-4" />
                   <span>People Decide</span>
                 </div>
-                <p className="text-xs text-warm-500 leading-snug">
-                  AI drafts options; human organizers hold 100% approval authority.
+                <p className="text-xs text-slate-500 leading-snug">
+                  AI drafts options; human coordinators hold 100% approval authority.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white border border-warm-200/80 shadow-sm space-y-1">
-                <div className="text-sage-700 font-serif font-semibold text-sm flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-sage-600" />
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-soft space-y-1">
+                <div className="text-mint-700 font-serif font-semibold text-sm flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-mint-600" />
                   <span>Privacy First</span>
                 </div>
-                <p className="text-xs text-warm-500 leading-snug">
+                <p className="text-xs text-slate-500 leading-snug">
                   No recipient names, stories, or addresses exposed to the public.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white border border-warm-200/80 shadow-sm space-y-1">
-                <div className="text-warm-800 font-serif font-semibold text-sm flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-clay-600" />
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-soft space-y-1">
+                <div className="text-slate-800 font-serif font-semibold text-sm flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-brand-500" />
                   <span>Ledger Provenance</span>
                 </div>
-                <p className="text-xs text-warm-500 leading-snug">
+                <p className="text-xs text-slate-500 leading-snug">
                   Funds only spendable after cryptographically verified capture.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Clear Single-Action Donation Card (No Hunting for Donate Button!) */}
+          {/* Right Column: Clear Single-Action Donation Card with Pastel Colors */}
           <div className="lg:col-span-5">
-            <div className="relative bg-white rounded-4xl p-7 sm:p-9 shadow-warm-lg border border-warm-200/90 space-y-7">
+            <div className="relative bg-white rounded-4xl p-7 sm:p-9 shadow-soft-lg border border-slate-200/90 space-y-6">
               {/* Card Header */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-clay-600">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-brand-600">
                     Community Emergency Pool
                   </span>
                   <button
                     onClick={onRefreshPool}
-                    className="p-1 rounded-lg text-warm-400 hover:text-warm-700 hover:bg-warm-100 transition-colors"
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                     title="Refresh pool balance"
                     aria-label="Refresh pool balance"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <h2 className="font-serif text-2xl sm:text-3xl font-bold text-warm-900">
+                <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900">
                   Power the next 48 hours
                 </h2>
-                <p className="text-xs text-warm-500">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   Contributions directly credit the community emergency pool, enabling immediate supply purchases with itemized receipts.
                 </p>
               </div>
 
-              {/* Verified Live Pool Stats */}
-              <div className="p-5 rounded-3xl bg-warm-50/80 border border-warm-200/80 space-y-4">
+              {/* Verified Live Pool Stats in Soft Pastel Blue & Mint */}
+              <div className="p-5 rounded-3xl bg-slate-50/90 border border-slate-200/80 space-y-4">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-warm-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                       Currently Available
                     </span>
-                    <div className="font-serif text-3xl font-bold text-warm-900 tracking-tight">
+                    <div className="font-serif text-3xl font-bold text-slate-900 tracking-tight">
                       ${availableDollars}{' '}
-                      <span className="text-xs font-sans font-medium text-warm-500">
+                      <span className="text-xs font-sans font-medium text-slate-500">
                         {currency}
                       </span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-sage-700">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-mint-700">
                       Confirmed Inflow
                     </span>
-                    <div className="text-base font-bold text-sage-800">
+                    <div className="text-base font-bold text-mint-800">
                       ${confirmedDollars}
                     </div>
                   </div>
                 </div>
 
-                {/* Styled semantic progress element per Modern Web Guidance */}
+                {/* Styled progress bar with pastel blue */}
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] text-warm-600 font-medium">
+                  <div className="flex justify-between text-[11px] text-slate-600 font-medium">
                     <span>Allocated &amp; Spent</span>
                     <span>
                       ${(parseFloat(reservedDollars) + parseFloat(spentDollars)).toFixed(2)} / ${confirmedDollars}
@@ -246,7 +244,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                     className="w-full h-3"
                     aria-label="Fund pool allocation progress"
                   />
-                  <div className="flex justify-between text-[10px] text-warm-400">
+                  <div className="flex justify-between text-[10px] text-slate-400">
                     <span>Reserved: ${reservedDollars}</span>
                     <span>Spent with receipts: ${spentDollars}</span>
                   </div>
@@ -254,8 +252,8 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
               </div>
 
               {/* Amount Selection */}
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold text-warm-700">
+              <div className="space-y-2.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   Select Contribution Amount ({currency})
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -271,12 +269,12 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                         }}
                         className={`p-3 rounded-2xl text-left border transition-all ${
                           isSelected
-                            ? 'bg-clay-50/80 border-clay-500 text-clay-900 ring-2 ring-clay-500/20 font-bold'
-                            : 'bg-warm-50/50 border-warm-200 text-warm-700 hover:border-warm-300'
+                            ? 'bg-sky-50 border-brand-500 text-brand-900 ring-2 ring-brand-200 font-bold'
+                            : 'bg-slate-50/70 border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
                         <div className="text-sm font-bold">{preset.label}</div>
-                        <div className="text-[10px] text-warm-500 font-normal leading-tight">
+                        <div className="text-[10px] text-slate-500 font-normal leading-tight">
                           {preset.hint}
                         </div>
                       </button>
@@ -285,9 +283,9 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                 </div>
 
                 {/* Custom Amount Input */}
-                <div className="pt-1">
+                <div className="pt-0.5">
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-sm font-semibold text-warm-400 pointer-events-none">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
                       $
                     </span>
                     <input
@@ -297,7 +295,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                       placeholder="Other amount in USD..."
                       value={customAmount}
                       onChange={(e) => setCustomAmount(e.target.value)}
-                      className="w-full text-xs font-medium pl-8 pr-4 py-3 rounded-2xl bg-warm-50/50 border border-warm-200 focus:outline-none focus:ring-2 focus:ring-clay-500/30 focus:border-clay-500 transition-colors"
+                      className="w-full text-xs font-medium pl-8 pr-4 py-2.5 rounded-2xl bg-slate-50/80 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
                       aria-label="Custom donation amount"
                     />
                   </div>
@@ -313,25 +311,25 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
               )}
 
               {successMessage && (
-                <div className="p-3.5 rounded-2xl bg-sage-50 border border-sage-200 text-sage-900 text-xs flex items-start gap-2">
-                  <HandDrawnCheck className="w-4 h-4 text-sage-600 shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-2xl bg-mint-50 border border-mint-200 text-mint-900 text-xs flex items-start gap-2">
+                  <HandDrawnCheck className="w-4 h-4 text-mint-600 shrink-0 mt-0.5" />
                   <span>{successMessage}</span>
                 </div>
               )}
 
               {/* Order Pending Capture Box */}
               {orderResult && (
-                <div className="p-4 rounded-3xl bg-warm-50 border border-warm-200 space-y-3">
+                <div className="p-4 rounded-3xl bg-slate-50 border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-warm-800">
+                    <span className="text-xs font-bold text-slate-800">
                       PayPal Order Created
                     </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-warm-200 text-warm-700">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 text-slate-700">
                       {orderResult.orderId}
                     </span>
                   </div>
 
-                  <p className="text-xs text-warm-600 leading-relaxed">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     Approve the payment in the PayPal Sandbox window, then click confirm capture below:
                   </p>
 
@@ -340,7 +338,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                       href={orderResult.approveUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-white border border-warm-300 text-warm-800 hover:bg-warm-100 transition-colors shadow-sm"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-300 text-slate-800 hover:bg-slate-100 transition-colors shadow-sm"
                     >
                       <span>Open Sandbox Approval</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -349,7 +347,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                       type="button"
                       disabled={isCapturing}
                       onClick={() => handleCaptureVerification(orderResult.orderId)}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-sage-700 text-white hover:bg-sage-800 transition-colors disabled:opacity-50 shadow-sm"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-mint-700 text-white hover:bg-mint-800 transition-colors disabled:opacity-50 shadow-sm"
                     >
                       {isCapturing ? 'Verifying...' : 'Verify & Credit Ledger'}
                     </button>
@@ -357,15 +355,15 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                 </div>
               )}
 
-              {/* The Clear Primary Action: Big Obvious Donate Button */}
+              {/* The Clear Primary Action: Big Obvious Donate Button in Blue */}
               {!orderResult && (
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleDonate}
-                  className="w-full py-4 px-6 rounded-2xl text-base font-bold bg-clay-600 hover:bg-clay-700 text-white transition-all transform active:scale-[0.99] shadow-warm flex items-center justify-center gap-2 group disabled:opacity-60"
+                  className="w-full py-3.5 px-6 rounded-2xl text-base font-bold bg-brand-600 hover:bg-brand-700 text-white transition-all transform active:scale-[0.99] shadow-soft-blue flex items-center justify-center gap-2 group disabled:opacity-60"
                 >
-                  <Heart className="w-5 h-5 text-white/90 group-hover:scale-110 transition-transform" />
+                  <Heart className="w-5 h-5 text-white/90 group-hover:scale-110 transition-transform fill-white/20" />
                   <span>
                     {isSubmitting
                       ? 'Creating PayPal Sandbox Order...'
@@ -375,10 +373,10 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                 </button>
               )}
 
-              {/* Safety Disclaimers & PayPal Sandbox Notice */}
-              <div className="pt-1 text-center">
-                <p className="text-[11px] text-warm-400 leading-tight">
-                  <span className="font-semibold text-warm-600">PayPal Sandbox Prototype</span> &bull; Uses test sandbox credentials only.
+              {/* Safety Disclaimers */}
+              <div className="pt-0.5 text-center">
+                <p className="text-[11px] text-slate-400 leading-tight">
+                  <span className="font-semibold text-slate-600">PayPal Sandbox Prototype</span> &bull; Uses test sandbox credentials only.
                   Ledger credits execute solely on authenticated capture events.
                 </p>
               </div>

@@ -7,8 +7,8 @@ import { FulfillmentOps } from './components/FulfillmentOps';
 import { RecipientPortal } from './components/RecipientPortal';
 import { api, getAuthToken, setAuthToken } from './api';
 import { BoardData, Campaign, PoolBalance } from './types';
-import { HeartInHandsSvg, CommunityShelterSvg } from './components/OrganicIllustration';
-import { ShieldCheck, ArrowRight, Heart } from 'lucide-react';
+import { HeartInHandsSvg } from './components/OrganicIllustration';
+import { ArrowRight, Heart } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -29,7 +29,6 @@ export const App: React.FC = () => {
         }
       } catch (err) {
         console.warn('Initial campaign load (using fallback or waiting for token):', err);
-        // Fallback demo campaign if backend is starting up
         setCampaigns([
           {
             id: 'b253a83d-09ae-4ec7-81f4-055aac27f72a',
@@ -76,7 +75,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-warm-50 text-warm-900 selection:bg-clay-200">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-brand-100">
       {/* Top Banner & Header */}
       <Navbar
         currentTab={currentTab}
@@ -102,19 +101,19 @@ export const App: React.FC = () => {
 
             {/* Donor Transparency & Live Gap Preview */}
             <section className="pb-16 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-warm-200/80 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-4">
                 <div>
-                  <span className="text-xs font-bold text-clay-600 uppercase tracking-wider">
+                  <span className="text-xs font-bold text-brand-600 uppercase tracking-wider">
                     Community Accountability
                   </span>
-                  <h3 className="font-serif text-2xl sm:text-3xl font-bold text-warm-900 mt-1">
+                  <h3 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
                     Where the emergency pool is directed right now
                   </h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setCurrentTab('board')}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-clay-700 hover:text-clay-800 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-700 transition-colors"
                 >
                   <span>Inspect Full Coordination Board</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -122,7 +121,7 @@ export const App: React.FC = () => {
               </div>
 
               {/* Board Snapshot */}
-              <div className="bg-white rounded-4xl p-6 sm:p-8 border border-warm-200/80 shadow-warm">
+              <div className="bg-white rounded-4xl p-6 sm:p-8 border border-slate-200/80 shadow-soft">
                 <CoordinationBoard
                   boardData={boardData}
                   campaignId={selectedCampaignId}
@@ -162,66 +161,66 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Warm, Minimal Human-Centered Footer */}
-      <footer className="mt-20 border-t border-warm-200/80 bg-warm-100/60 py-12">
+      {/* Clean Pastel Minimalist Footer */}
+      <footer className="mt-20 border-t border-slate-200/80 bg-slate-100/60 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <HeartInHandsSvg className="w-5 h-5 text-clay-600" />
-                <span className="font-serif text-lg font-bold text-warm-900">
+                <HeartInHandsSvg className="w-5 h-5 text-brand-600" />
+                <span className="font-serif text-lg font-bold text-slate-900">
                   ReliefRail
                 </span>
-                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-clay-100 text-clay-800">
+                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-sky-100 text-brand-800">
                   Prototype
                 </span>
               </div>
-              <p className="text-xs text-warm-500 max-w-md">
+              <p className="text-xs text-slate-500 max-w-md">
                 AI-assisted aid coordination and pooled fund accounting for community disaster response.
                 Built for the PayPal AI Hackathon.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-6 text-xs text-warm-600 font-medium">
+            <div className="flex flex-wrap items-center gap-6 text-xs text-slate-600 font-medium">
               <button
                 type="button"
                 onClick={() => setCurrentTab('supporter')}
-                className="hover:text-warm-900"
+                className="hover:text-slate-900"
               >
                 Donate
               </button>
               <button
                 type="button"
                 onClick={() => setCurrentTab('board')}
-                className="hover:text-warm-900"
+                className="hover:text-slate-900"
               >
                 Gap Board
               </button>
               <button
                 type="button"
                 onClick={() => setCurrentTab('triage')}
-                className="hover:text-warm-900"
+                className="hover:text-slate-900"
               >
                 AI Triage
               </button>
               <button
                 type="button"
                 onClick={() => setCurrentTab('recipient')}
-                className="hover:text-warm-900"
+                className="hover:text-slate-900"
               >
                 Seek Aid
               </button>
             </div>
           </div>
 
-          <div className="pt-6 border-t border-warm-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-warm-400">
+          <div className="pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
             <p>
               &bull; Fictional flood response demonstration with real PayPal Sandbox integration.
               AI assists with drafting; authorized humans make all allocation and spending decisions.
             </p>
-            <p className="flex items-center gap-1 font-semibold text-warm-500">
+            <p className="flex items-center gap-1 font-semibold text-slate-500">
               <span>Made with care</span>
-              <Heart className="w-3 h-3 text-clay-600 fill-clay-600" />
+              <Heart className="w-3 h-3 text-brand-600 fill-brand-600" />
               <span>for communities</span>
             </p>
           </div>

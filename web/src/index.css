@@ -4,28 +4,29 @@
 
 @layer base {
   :root {
-    --color-warm-bg: #FAF8F5;
-    --color-warm-card: #FFFFFF;
-    --color-warm-border: #EBE2D9;
-    --color-clay: #C86D4D;
-    --color-sage: #556D56;
+    --color-bg: #F8FAFC;
+    --color-card: #FFFFFF;
+    --color-border: #E2E8F0;
+    --color-primary: #0284C7;
+    --color-primary-soft: #E0F2FE;
+    --color-mint: #16A34A;
   }
 
   body {
-    background-color: var(--color-warm-bg);
-    color: #2B2826;
+    background-color: var(--color-bg);
+    color: #0F172A;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Custom styled progress bars per Modern Web Guidance */
+  /* Custom styled progress bars per Modern Web Guidance with pastel blue fill */
   progress {
     appearance: none;
     border: 0 solid transparent;
     overflow: clip;
     --progress-bar-radius: 9999px;
     border-radius: var(--progress-bar-radius);
-    background: #EBE2D9;
-    box-shadow: inset 0 1px 2px rgba(43, 40, 38, 0.08);
+    background: #E2E8F0;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
   progress::-webkit-progress-bar {
@@ -33,19 +34,19 @@
   }
 
   progress::-webkit-progress-value {
-    background: #C86D4D;
+    background: #0284C7;
     border-radius: var(--progress-bar-radius);
     transition: inline-size 0.4s ease-out;
   }
 
   progress::-moz-progress-bar {
-    background: #C86D4D;
+    background: #0284C7;
     border-radius: var(--progress-bar-radius);
     transition: inline-size 0.4s ease-out;
   }
 }
 
-/* Organic touch: subtle hand-drawn underline accent */
+/* Organic touch: soft pastel blue hand-drawn underline accent */
 .organic-underline {
   position: relative;
   display: inline-block;
@@ -58,14 +59,9 @@
   bottom: -4px;
   width: 104%;
   height: 6px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 8' preserveAspectRatio='none'%3E%3Cpath d='M1 5.5 Q 25 1.5, 50 5 Q 75 8, 99 3.5' stroke='%23C86D4D' stroke-width='2.5' fill='none' stroke-linecap='round' opacity='0.7'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 8' preserveAspectRatio='none'%3E%3Cpath d='M1 5.5 Q 25 1.5, 50 5 Q 75 8, 99 3.5' stroke='%230284C7' stroke-width='2.5' fill='none' stroke-linecap='round' opacity='0.75'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-size: 100% 100%;
-}
-
-/* Subtle hand-drawn badge border */
-.organic-border {
-  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
 }
 
 /* Reduced motion preference */
