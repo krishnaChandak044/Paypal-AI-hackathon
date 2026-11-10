@@ -58,7 +58,19 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             title="Inject 3 realistic disaster relief requests"
           >
             <Waves className="w-3 h-3 text-brand-500" />
-            <span>{isInjecting ? 'Injecting...' : '1. Inject Crisis Cases'}</span>
+            <span>{isInjecting ? 'Injecting...' : '1. Inject Influx'}</span>
+          </button>
+
+          <span className="text-slate-300 hidden sm:inline">&bull;</span>
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab('triage')}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 shadow-sm text-[11px] font-semibold transition-all"
+            title="Inspect AI Semantic Deduplication & Anti-Fraud Radar"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>2. Anti-Fraud Radar</span>
           </button>
 
           <span className="text-slate-300 hidden sm:inline">&bull;</span>
@@ -68,7 +80,7 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             onClick={() => onNavigateTab('board')}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200 shadow-sm text-[11px]"
           >
-            <span>2. Disburse PayPal Grant</span>
+            <span>3. Disburse Fast-Grant</span>
           </button>
 
           <span className="text-slate-300 hidden sm:inline">&bull;</span>
@@ -78,7 +90,7 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             onClick={() => onNavigateTab('fulfillment')}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200 shadow-sm text-[11px]"
           >
-            <span>3. Audit Store Receipt</span>
+            <span>4. Audit Store Receipt</span>
           </button>
 
           <span className="text-slate-300 hidden sm:inline">&bull;</span>
@@ -90,7 +102,7 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             title="Inspect Live PayPal Transaction Impact Journey & Zero-PII AI Story"
           >
             <Sparkles className="w-3.5 h-3.5 text-sky-200" />
-            <span>4. Trace PayPal Journey</span>
+            <span>5. Trace PayPal Journey</span>
           </button>
 
           {statusMessage && (

@@ -3,9 +3,13 @@ import {
   AiDraftResult,
   BoardData,
   Campaign,
+  DuplicateMatch,
   ExceptionCaseItem,
+  MergeRequestResult,
   PaymentItem,
   PoolBalance,
+  RadarSummaryItem,
+  RequestDuplicatesResult,
   ResourceItem,
   UnreconciledItem,
 } from './types';
@@ -288,6 +292,44 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to update request');
     return res.json();
+  },
+
+  // AI Anti-Fraud Radar & Semantic Deduplication
+  async getRequestDuplicates(campaignId: string, requestId: string): Promise<RequestDuplicatesResult> {
+    return request(`/campaigns/${campaignId}/requests/${requestId}/duplicates`);
+  },
+
+  async getRadarSummary(campaignId: string): Promise<Record<string, RadarSummaryItem>> {
+    return request(`/campaigns/${campaignId}/requests/radar/summary`);
+  },
+
+  async mergeRequests(
+    campaignId: string,
+    primaryRequestId: string,
+    duplicateRequestId: string,
+    reason?: string
+  ): Promise<MergeRequestResult> {
+    return request(`/campaigns/${campaignId}/requests/merge`, {
+      method: 'POST',
+      body: JSON.stringify({
+        primary_request_id: primaryRequestId,
+        duplicate_request_id: duplicateRequestId,
+        reason: reason || 'Consolidated duplicate claims from same household to prevent double disbursement.',
+      }),
+    });
+  },
+
+  async simulateDuplicate(campaignId: string): Promise<{
+    status: string;
+    primary_request_id: string;
+    duplicate_request_id: string;
+    duplicate_message: string;
+    potential_savings_minor: number;
+  }> {
+    return request(`/campaigns/${campaignId}/requests/simulate-duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
   },
 };
 

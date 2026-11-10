@@ -7,9 +7,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
-from ..database import get_db
+from ..database import get_db, now, uid
+from ..dedup import detect_duplicates_for_request, merge_duplicate_requests
 from ..models import AidRequest, Member, Need, RecipientAccess, RequestRevision
-from ..schemas import NeedIn, RequestIn, StatusIn
+from ..schemas import (
+    MergeRequestIn,
+    MergeRequestOut,
+    NeedIn,
+    RequestDuplicatesOut,
+    RequestIn,
+    SimulateDuplicateIn,
+    StatusIn,
+)
 
 router = APIRouter(tags=["Requests & Aid Plans"])
 
@@ -50,9 +59,158 @@ def list_requests(
     ).all()
 
     return [
-        {"id": r.id, "message": r.message, "status": r.status}
+        {"id": r.id, "message": r.message, "status": r.status, "created_at": r.created_at}
         for r in requests
     ]
+
+
+@router.get("/campaigns/{campaign_id}/requests/{request_id}/duplicates", response_model=RequestDuplicatesOut)
+def get_request_duplicates(
+    campaign_id: str,
+    request_id: str,
+    session: Session = Depends(get_db),
+    current_member: Member = Depends(actor),
+):
+    """AI Anti-Fraud Radar: Analyzes semantic and location similarity to detect duplicate requests."""
+    require(current_member)
+    campaign(session, campaign_id, current_member)
+
+    return detect_duplicates_for_request(session, campaign_id, request_id)
+
+
+@router.get("/campaigns/{campaign_id}/requests/radar/summary")
+def get_campaign_radar_summary(
+    campaign_id: str,
+    session: Session = Depends(get_db),
+    current_member: Member = Depends(actor),
+):
+    """Fast summary of detected duplicates across all active requests for triage indicators."""
+    require(current_member)
+    campaign(session, campaign_id, current_member)
+
+    requests = session.scalars(
+        select(AidRequest).where(
+            AidRequest.campaign_id == campaign_id,
+            AidRequest.status != "merged",
+        )
+    ).all()
+
+    summary = {}
+    for r in requests:
+        res = detect_duplicates_for_request(session, campaign_id, r.id, threshold=0.70)
+        if res.matches:
+            top = res.matches[0]
+            summary[r.id] = {
+                "has_duplicate": True,
+                "similarity_score": top.similarity_score,
+                "similarity_percentage": top.similarity_percentage,
+                "matched_request_id": top.matched_request_id,
+                "reason": top.reason,
+                "potential_savings_minor": top.potential_savings_minor,
+            }
+        else:
+            summary[r.id] = {
+                "has_duplicate": False,
+                "similarity_score": 0.0,
+                "similarity_percentage": 0,
+                "matched_request_id": None,
+                "reason": "",
+                "potential_savings_minor": 0,
+            }
+
+    return summary
+
+
+@router.post("/campaigns/{campaign_id}/requests/merge", response_model=MergeRequestOut)
+def merge_requests_endpoint(
+    campaign_id: str,
+    body: MergeRequestIn,
+    session: Session = Depends(get_db),
+    current_member: Member = Depends(actor),
+):
+    """Accountable 1-click merge of a duplicate request into a primary request to prevent double payout."""
+    require(current_member)
+    campaign(session, campaign_id, current_member)
+
+    try:
+        return merge_duplicate_requests(
+            session=session,
+            current_member=current_member,
+            campaign_id=campaign_id,
+            primary_request_id=body.primary_request_id,
+            duplicate_request_id=body.duplicate_request_id,
+            reason_note=body.reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/campaigns/{campaign_id}/requests/simulate-duplicate")
+def simulate_duplicate_request(
+    campaign_id: str,
+    body: SimulateDuplicateIn,
+    session: Session = Depends(get_db),
+    current_member: Member = Depends(actor),
+):
+    """Simulates an incoming duplicate SMS/phone intake request to test the Anti-Fraud Radar in real time."""
+    require(current_member)
+    c = campaign(session, campaign_id, current_member)
+
+    # Check if primary 104 Riverside Dr request exists; if not, create it
+    existing_primary = session.scalars(
+        select(AidRequest).where(
+            AidRequest.campaign_id == campaign_id,
+            AidRequest.message.like("%104 Riverside%"),
+            AidRequest.status != "merged",
+        )
+    ).first()
+
+    if not existing_primary:
+        primary_req = AidRequest(
+            id=uid(),
+            campaign_id=campaign_id,
+            message="104 Riverside Dr - Power cut off due to river overflow, ground floor flooded. Need portable generator to power medical CPAP and heater.",
+            status="approved",
+            created_at=now(),
+        )
+        session.add(primary_req)
+        session.flush()
+
+        primary_need = Need(
+            id=uid(),
+            request_id=primary_req.id,
+            description="Emergency portable generator and fuel for 104 Riverside Dr",
+            amount_minor=18500,
+            status="approved",
+        )
+        session.add(primary_need)
+        session.flush()
+        primary_id = primary_req.id
+    else:
+        primary_id = existing_primary.id
+
+    # Create incoming duplicate request (e.g. submitted via SMS by frantic daughter)
+    dup_req = AidRequest(
+        id=uid(),
+        campaign_id=campaign_id,
+        message="URGENT SMS: Panicked daughter here. Parents trapped at 104 Riverside Drive with no power and water rising. Need generator for medical CPAP machine ASAP!",
+        status="received",
+        created_at=now(),
+    )
+    session.add(dup_req)
+    session.flush()
+
+    log(session, current_member, "simulation.duplicate_injected", dup_req.id)
+    session.commit()
+
+    return {
+        "status": "duplicate_simulated",
+        "primary_request_id": primary_id,
+        "duplicate_request_id": dup_req.id,
+        "duplicate_message": dup_req.message,
+        "potential_savings_minor": 18500,
+    }
+
 
 
 @router.post("/requests/{request_id}/needs")

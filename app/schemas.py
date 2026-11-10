@@ -173,3 +173,47 @@ class PayPalImpactJourneyOut(BaseModel):
     zero_pii_certificate: Dict[str, Any]
 
 
+# Semantic Deduplication & Anti-Fraud Radar Schemas
+class DuplicateMatchOut(BaseModel):
+    matched_request_id: str
+    matched_message: str
+    matched_status: str
+    matched_created_at: str
+    similarity_score: float
+    similarity_percentage: int
+    confidence_level: Literal["high", "medium", "low"]
+    overlapping_keywords: List[str]
+    detected_address: Optional[str] = None
+    potential_savings_minor: int
+    reason: str
+    suggested_action: Literal["merge", "review", "keep_separate"] = "merge"
+
+
+class RequestDuplicatesOut(BaseModel):
+    request_id: str
+    total_matches: int
+    has_high_confidence_duplicate: bool
+    matches: List[DuplicateMatchOut]
+
+
+class MergeRequestIn(BaseModel):
+    primary_request_id: str
+    duplicate_request_id: str
+    reason: Optional[str] = "Consolidated duplicate claims from same household to prevent double disbursement."
+
+
+class MergeRequestOut(BaseModel):
+    status: Literal["merged"]
+    primary_request_id: str
+    duplicate_request_id: str
+    potential_savings_minor: int
+    audit_action: str
+    message: str
+
+
+class SimulateDuplicateIn(BaseModel):
+    address: Optional[str] = "104 Riverside Drive"
+    equipment: Optional[str] = "portable emergency generator"
+
+
+

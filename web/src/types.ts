@@ -32,7 +32,7 @@ export interface BoardData {
 export interface AidRequest {
   id: string;
   message: string;
-  status: 'received' | 'needs_clarification' | 'approved' | 'partially_fulfilled' | 'fulfilled' | 'on_hold' | 'declined' | 'withdrawn';
+  status: 'received' | 'needs_clarification' | 'approved' | 'partially_fulfilled' | 'fulfilled' | 'on_hold' | 'declined' | 'withdrawn' | 'merged';
   created_at?: string;
 }
 
@@ -189,6 +189,47 @@ export interface PayPalImpactJourneyResult {
     audit_hash: string;
   };
 }
+
+export interface DuplicateMatch {
+  matched_request_id: string;
+  matched_message: string;
+  matched_status: string;
+  matched_created_at: string;
+  similarity_score: number;
+  similarity_percentage: number;
+  confidence_level: 'high' | 'medium' | 'low';
+  overlapping_keywords: string[];
+  detected_address: string | null;
+  potential_savings_minor: number;
+  reason: string;
+  suggested_action: 'merge' | 'review' | 'keep_separate';
+}
+
+export interface RequestDuplicatesResult {
+  request_id: string;
+  total_matches: number;
+  has_high_confidence_duplicate: boolean;
+  matches: DuplicateMatch[];
+}
+
+export interface RadarSummaryItem {
+  has_duplicate: boolean;
+  similarity_score: number;
+  similarity_percentage: number;
+  matched_request_id: string | null;
+  reason: string;
+  potential_savings_minor: number;
+}
+
+export interface MergeRequestResult {
+  status: 'merged';
+  primary_request_id: string;
+  duplicate_request_id: string;
+  potential_savings_minor: number;
+  audit_action: string;
+  message: string;
+}
+
 
 
 
