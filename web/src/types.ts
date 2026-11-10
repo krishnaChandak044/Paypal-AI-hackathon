@@ -155,5 +155,41 @@ export interface PayoutItem {
   mode: string;
 }
 
+export interface JourneyStep {
+  stage: number;
+  title: string;
+  subtitle: string;
+  description: string;
+  status: 'completed' | 'allocated' | 'disbursed' | 'audited';
+  timestamp: string;
+  reference: string;
+  badge: string;
+}
+
+export interface PayPalImpactJourneyResult {
+  order_id: string;
+  capture_id: string | null;
+  amount_minor: number;
+  currency: string;
+  campaign_name: string;
+  status: string;
+  confirmed_at: string;
+  timeline: JourneyStep[];
+  verified_items_funded: string[];
+  ai_impact_narrative: {
+    supporter_letter: string;
+    social_card: string;
+    audit_summary: string;
+  };
+  zero_pii_certificate: {
+    zero_pii_verified: boolean;
+    classification: string;
+    redactions_enforced: string[];
+    compliance_standard: string;
+    audit_hash: string;
+  };
+}
+
+
 
 

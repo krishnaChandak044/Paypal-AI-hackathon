@@ -250,6 +250,15 @@ export const api = {
     });
   },
 
+  // Live PayPal Transaction Impact Journey & Zero-PII Storyteller
+  async getPayPalOrderJourney(orderId: string): Promise<any> {
+    const res = await fetch(`/paypal/orders/${encodeURIComponent(orderId)}/journey`);
+    if (!res.ok) {
+      throw new Error('Unable to retrieve PayPal impact journey.');
+    }
+    return res.json();
+  },
+
   // Recipient Public Portal
   async publicIntake(campaignId: string, message: string): Promise<{ request_id: string; access_token: string; status: string }> {
     return request(`/campaigns/${campaignId}/recipient-intake`, {

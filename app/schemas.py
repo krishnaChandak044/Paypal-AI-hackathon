@@ -146,3 +146,30 @@ class PayoutOut(BaseModel):
 class SimulateCrisisIn(BaseModel):
     scenario: Literal["flash_flood_wave", "power_outage_freeze", "urban_wildfire"] = "flash_flood_wave"
 
+
+# Live PayPal Transaction Impact Journey & Zero-PII Storyteller Schemas
+class JourneyStep(BaseModel):
+    stage: int
+    title: str
+    subtitle: str
+    description: str
+    status: Literal["completed", "allocated", "disbursed", "audited"]
+    timestamp: str
+    reference: str
+    badge: str
+
+
+class PayPalImpactJourneyOut(BaseModel):
+    order_id: str
+    capture_id: Optional[str] = None
+    amount_minor: int
+    currency: str
+    campaign_name: str
+    status: str
+    confirmed_at: str
+    timeline: List[JourneyStep]
+    verified_items_funded: List[str]
+    ai_impact_narrative: Dict[str, str]
+    zero_pii_certificate: Dict[str, Any]
+
+

@@ -6,6 +6,7 @@ import { AiTriageReview } from './components/AiTriageReview';
 import { FulfillmentOps } from './components/FulfillmentOps';
 import { RecipientPortal } from './components/RecipientPortal';
 import { CrisisSimulatorBar } from './components/CrisisSimulatorBar';
+import { PayPalImpactJourneyModal } from './components/PayPalImpactJourneyModal';
 import { api, getAuthToken, setAuthToken } from './api';
 import { BoardData, Campaign, PoolBalance } from './types';
 import { HeartInHandsSvg } from './components/OrganicIllustration';
@@ -18,6 +19,8 @@ export const App: React.FC = () => {
   const [pool, setPool] = useState<PoolBalance | null>(null);
   const [currentTab, setCurrentTab] = useState<string>('supporter');
   const [authToken, setLocalAuthToken] = useState<string>(getAuthToken());
+  const [showJourneyModal, setShowJourneyModal] = useState<boolean>(false);
+  const [journeyOrderId, setJourneyOrderId] = useState<string>('84Y94709MX0315008');
 
   // Load campaigns on initial mount
   useEffect(() => {
@@ -82,6 +85,10 @@ export const App: React.FC = () => {
         campaignId={selectedCampaignId}
         onCrisisInjected={refreshBoardAndPool}
         onNavigateTab={(tab) => setCurrentTab(tab)}
+        onOpenJourney={(orderId) => {
+          if (orderId) setJourneyOrderId(orderId);
+          setShowJourneyModal(true);
+        }}
       />
 
       {/* Top Banner & Header */}
@@ -105,6 +112,10 @@ export const App: React.FC = () => {
               currency={activeCampaign.currency}
               pool={pool || (boardData ? boardData.pool : null)}
               onRefreshPool={refreshBoardAndPool}
+              onOpenJourney={(orderId) => {
+                if (orderId) setJourneyOrderId(orderId);
+                setShowJourneyModal(true);
+              }}
             />
 
             {/* Donor Transparency & Live Gap Preview */}
@@ -234,6 +245,14 @@ export const App: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Live PayPal Transaction Impact Journey & Zero-PII Storyteller Modal */}
+      {showJourneyModal && (
+        <PayPalImpactJourneyModal
+          initialOrderId={journeyOrderId}
+          onClose={() => setShowJourneyModal(false)}
+        />
+      )}
     </div>
   );
 };

@@ -6,12 +6,14 @@ interface CrisisSimulatorBarProps {
   campaignId: string;
   onCrisisInjected: () => void;
   onNavigateTab: (tab: string) => void;
+  onOpenJourney?: (orderId?: string) => void;
 }
 
 export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
   campaignId,
   onCrisisInjected,
   onNavigateTab,
+  onOpenJourney,
 }) => {
   const [isInjecting, setIsInjecting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -77,6 +79,18 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/80 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200 shadow-sm text-[11px]"
           >
             <span>3. Audit Store Receipt</span>
+          </button>
+
+          <span className="text-slate-300 hidden sm:inline">&bull;</span>
+
+          <button
+            type="button"
+            onClick={() => onOpenJourney && onOpenJourney('84Y94709MX0315008')}
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-gradient-to-r from-[#0070BA] to-brand-600 hover:from-[#005ea6] hover:to-brand-700 text-white shadow-sm text-[11px] font-bold transition-all active:scale-95"
+            title="Inspect Live PayPal Transaction Impact Journey & Zero-PII AI Story"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-sky-200" />
+            <span>4. Trace PayPal Journey</span>
           </button>
 
           {statusMessage && (

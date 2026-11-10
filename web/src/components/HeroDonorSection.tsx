@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import { PoolBalance } from '../types';
 import { HeartInHandsSvg, HandDrawnSparkle, HandDrawnCheck } from './OrganicIllustration';
-import { ArrowUpRight, CheckCircle2, ShieldCheck, Heart, ExternalLink, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, ShieldCheck, Heart, ExternalLink, RefreshCw, Sparkles, Zap } from 'lucide-react';
 
 interface HeroDonorSectionProps {
   campaignId: string;
@@ -10,6 +10,7 @@ interface HeroDonorSectionProps {
   currency: string;
   pool: PoolBalance | null;
   onRefreshPool: () => void;
+  onOpenJourney?: (orderId?: string) => void;
 }
 
 export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
@@ -18,6 +19,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
   currency,
   pool,
   onRefreshPool,
+  onOpenJourney,
 }) => {
   const [selectedAmount, setSelectedAmount] = useState<number>(2500); // minor units ($25.00)
   const [customAmount, setCustomAmount] = useState<string>('');
@@ -28,6 +30,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
   } | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [lastCapturedOrderId, setLastCapturedOrderId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const presetAmounts = [
@@ -78,6 +81,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
     try {
       const res = await api.capturePayPalOrder(orderId);
       setSuccessMessage(`Payment confirmed! PayPal Capture ID: ${res.capture_id}. The campaign ledger has received this credit.`);
+      setLastCapturedOrderId(orderId);
       setOrderResult(null);
       onRefreshPool();
     } catch (err: any) {
@@ -311,9 +315,21 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
               )}
 
               {successMessage && (
-                <div className="p-3.5 rounded-2xl bg-mint-50 border border-mint-200 text-mint-900 text-xs flex items-start gap-2">
-                  <HandDrawnCheck className="w-4 h-4 text-mint-600 shrink-0 mt-0.5" />
-                  <span>{successMessage}</span>
+                <div className="p-3.5 rounded-2xl bg-mint-50 border border-mint-200 text-mint-900 text-xs space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <HandDrawnCheck className="w-4 h-4 text-mint-600 shrink-0 mt-0.5" />
+                    <span>{successMessage}</span>
+                  </div>
+                  {onOpenJourney && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenJourney(lastCapturedOrderId || '84Y94709MX0315008')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-sky-200" />
+                      <span>Trace Your PayPal Impact Journey Live &rarr;</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -374,11 +390,22 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
               )}
 
               {/* Safety Disclaimers */}
-              <div className="pt-0.5 text-center">
+              <div className="pt-0.5 text-center space-y-2">
                 <p className="text-[11px] text-slate-400 leading-tight">
                   <span className="font-semibold text-slate-600">PayPal Sandbox Prototype</span> &bull; Uses test sandbox credentials only.
                   Ledger credits execute solely on authenticated capture events.
                 </p>
+
+                {onOpenJourney && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenJourney('84Y94709MX0315008')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-800 transition-colors pt-1"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-[#0070BA]" />
+                    <span>Trace Any PayPal Contribution (Live Provenance &amp; AI Story) &rarr;</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
