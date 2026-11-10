@@ -114,3 +114,35 @@ class ApplyAuditIn(BaseModel):
     need_id: str
     reference: str
     note: str
+
+
+# PayPal Outflow Payouts & Crisis Simulator Schemas
+class DisbursePayoutIn(BaseModel):
+    recipient_email: str = Field(description="Recipient's PayPal email or sandbox account")
+    recipient_name: str = Field(default="Field Coordinator", description="Name of recipient or supplier")
+    recipient_type: Literal["volunteer_lead", "certified_supplier", "displaced_family"] = "volunteer_lead"
+    amount_minor: int = Field(gt=0, description="Amount to disburse in minor units (cents)")
+    purpose_note: str = Field(min_length=5, max_length=500, description="Specific humanitarian relief purpose")
+
+
+class PayoutOut(BaseModel):
+    payout_id: str
+    need_id: str
+    ledger_id: str
+    payout_batch_id: str
+    payout_item_id: Optional[str]
+    recipient_email: str
+    recipient_name: str
+    recipient_type: str
+    amount_minor: int
+    fee_minor: int
+    currency: str
+    status: str
+    purpose_note: str
+    created_at: str
+    mode: str
+
+
+class SimulateCrisisIn(BaseModel):
+    scenario: Literal["flash_flood_wave", "power_outage_freeze", "urban_wildfire"] = "flash_flood_wave"
+

@@ -5,6 +5,7 @@ import { CoordinationBoard } from './components/CoordinationBoard';
 import { AiTriageReview } from './components/AiTriageReview';
 import { FulfillmentOps } from './components/FulfillmentOps';
 import { RecipientPortal } from './components/RecipientPortal';
+import { CrisisSimulatorBar } from './components/CrisisSimulatorBar';
 import { api, getAuthToken, setAuthToken } from './api';
 import { BoardData, Campaign, PoolBalance } from './types';
 import { HeartInHandsSvg } from './components/OrganicIllustration';
@@ -76,6 +77,13 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-brand-100">
+      {/* Top Interactive Crisis Demo Bar for Judges */}
+      <CrisisSimulatorBar
+        campaignId={selectedCampaignId}
+        onCrisisInjected={refreshBoardAndPool}
+        onNavigateTab={(tab) => setCurrentTab(tab)}
+      />
+
       {/* Top Banner & Header */}
       <Navbar
         currentTab={currentTab}

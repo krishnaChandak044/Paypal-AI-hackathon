@@ -171,6 +171,26 @@ class ReceiptAudit(Base):
     created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
 
 
+class Payout(Base):
+    __tablename__ = "payouts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    need_id: Mapped[str] = mapped_column(ForeignKey("needs.id"), nullable=False)
+    ledger_id: Mapped[str] = mapped_column(ForeignKey("ledger.id"), nullable=False)
+    payout_batch_id: Mapped[str] = mapped_column(String, nullable=False)
+    payout_item_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    recipient_email: Mapped[str] = mapped_column(String, nullable=False)
+    recipient_name: Mapped[str] = mapped_column(String, default="Field Coordinator", nullable=False)
+    recipient_type: Mapped[str] = mapped_column(String, default="volunteer_lead", nullable=False)
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    fee_minor: Mapped[int] = mapped_column(Integer, default=25, nullable=False)
+    currency: Mapped[str] = mapped_column(String, default="USD", nullable=False)
+    status: Mapped[str] = mapped_column(String, default="SUCCESS", nullable=False)
+    purpose_note: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
+
+
 class Job(Base):
     __tablename__ = "jobs"
 

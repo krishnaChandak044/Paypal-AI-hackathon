@@ -298,3 +298,4 @@ async def extract_receipt_from_image_or_sample(
 
     # Fallback to smart heuristic sample if vision API is offline or sample requested
     return SAMPLE_RECEIPTS.get(sample_id or "sample_infant_grocery", SAMPLE_RECEIPTS["sample_infant_grocery"])
+

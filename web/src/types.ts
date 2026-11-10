@@ -129,4 +129,31 @@ export interface HistoricalAuditItem {
   created_at: string;
 }
 
+export interface DisbursePayoutIn {
+  recipient_email: string;
+  recipient_name: string;
+  recipient_type: 'volunteer_lead' | 'certified_supplier' | 'displaced_family';
+  amount_minor: number;
+  purpose_note: string;
+}
+
+export interface PayoutItem {
+  payout_id: string;
+  need_id: string;
+  ledger_id: string;
+  payout_batch_id: string;
+  payout_item_id: string | null;
+  recipient_email: string;
+  recipient_name: string;
+  recipient_type: string;
+  amount_minor: number;
+  fee_minor: number;
+  currency: string;
+  status: string;
+  purpose_note: string;
+  created_at: string;
+  mode: string;
+}
+
+
 

@@ -30,6 +30,7 @@ from .routers import (
     campaigns,
     exceptions,
     health,
+    payouts,
     paypal as paypal_router,
     receipts,
     recipient as recipient_router,
@@ -61,6 +62,7 @@ app.include_router(exceptions.router)
 app.include_router(receipts.router)
 app.include_router(recipient_router.router)
 app.include_router(paypal_router.router)
+app.include_router(payouts.router)
 
 # Mount compiled modern frontend if built
 try:

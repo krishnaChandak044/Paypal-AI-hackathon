@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { BoardData, BoardNeed } from '../types';
+import React, { useState, useEffect } from 'react';
+import { BoardData, BoardNeed, PayoutItem } from '../types';
 import { api } from '../api';
 import { HandDrawnCheck, CommunityShelterSvg } from './OrganicIllustration';
+import { PayPalPayoutModal } from './PayPalPayoutModal';
 import {
   AlertCircle,
   Clock,
@@ -11,6 +12,10 @@ import {
   FileSpreadsheet,
   PlusCircle,
   Layers,
+  Zap,
+  CreditCard,
+  Send,
+  ExternalLink,
 } from 'lucide-react';
 
 interface CoordinationBoardProps {
@@ -27,10 +32,26 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
   onRequestTriage,
 }) => {
   const [selectedNeed, setSelectedNeed] = useState<BoardNeed | null>(null);
+  const [payoutNeed, setPayoutNeed] = useState<BoardNeed | null>(null);
+  const [payoutsList, setPayoutsList] = useState<PayoutItem[]>([]);
   const [reserveAmount, setReserveAmount] = useState<string>('');
   const [reserveRef, setReserveRef] = useState<string>('');
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  const loadPayouts = async () => {
+    if (!campaignId) return;
+    try {
+      const data = await api.getCampaignPayouts(campaignId);
+      setPayoutsList(data || []);
+    } catch (err) {
+      console.error('Failed to load payouts list:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadPayouts();
+  }, [campaignId]);
 
   const pool = boardData?.pool;
   const needs = boardData?.needs || [];
@@ -39,6 +60,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
   const totalReserved = needs.reduce((sum, n) => sum + n.reserved_minor, 0);
   const totalSpent = needs.reduce((sum, n) => sum + n.spent_minor, 0);
   const totalUnmet = needs.reduce((sum, n) => sum + n.unmet_minor, 0);
+  const totalDisbursedViaPayouts = payoutsList.reduce((sum, p) => sum + p.amount_minor, 0);
 
   const handleReserve = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +91,15 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
     } finally {
       setIsActionLoading(false);
     }
+  };
+
+  const handlePayoutSuccess = (payout: PayoutItem) => {
+    setActionMessage({
+      type: 'success',
+      text: `Disbursed $${(payout.amount_minor / 100).toFixed(2)} via PayPal Payout to ${payout.recipient_email} (Batch #${payout.payout_batch_id}).`,
+    });
+    loadPayouts();
+    onRefresh();
   };
 
   return (
@@ -247,16 +278,30 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
                       </td>
                       <td className="py-4 px-6 text-center">
                         {item.unmet_minor > 0 ? (
-                          <button
-                            onClick={() => {
-                              setSelectedNeed(item);
-                              setReserveAmount((item.unmet_minor / 100).toFixed(2));
-                              setReserveRef(`res-${item.need_id.substring(0, 6)}`);
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-brand-600 hover:text-white text-brand-700 font-bold text-xs border border-sky-200 transition-colors"
-                          >
-                            Reserve Pool
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPayoutNeed(item)}
+                              className="px-3 py-1.5 rounded-xl bg-[#0070BA] hover:bg-[#005ea6] text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5"
+                              title="Instant emergency fast-grant disbursal via PayPal Payouts"
+                            >
+                              <Zap className="w-3.5 h-3.5 text-sky-200" />
+                              <span>PayPal Payout</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedNeed(item);
+                                setReserveAmount((item.unmet_minor / 100).toFixed(2));
+                                setReserveRef(`res-${item.need_id.substring(0, 6)}`);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
+                              title="Reserve funds internally on ledger"
+                            >
+                              Reserve
+                            </button>
+                          </div>
                         ) : (
                           <span className="px-2.5 py-1 rounded-full bg-mint-50 text-mint-700 border border-mint-200 text-[10px] font-bold">
                             Fully Covered
@@ -347,6 +392,102 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Two-Way PayPal Money Flow: Inflow vs Outflow Transparency */}
+      <div className="bg-white rounded-4xl p-6 sm:p-8 border border-slate-200/80 shadow-soft space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0070BA]/10 text-[#0070BA] font-bold text-xs border border-[#0070BA]/20 mb-1.5">
+              <Zap className="w-3.5 h-3.5" />
+              <span>Two-Way Closed Loop &bull; PayPal Orders v2 (Inflow) + PayPal Payouts v1 (Outflow)</span>
+            </div>
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-slate-900">
+              Direct Emergency Grants Disbursal Log
+            </h3>
+            <p className="text-xs text-slate-500 max-w-2xl mt-1">
+              Real-time settlement of emergency cash stipends sent directly to field volunteer captains, local hardware stores, and displaced families via the PayPal Payouts API.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 text-right">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Disbursed</span>
+              <span className="font-serif text-lg font-bold text-brand-700">
+                ${(totalDisbursedViaPayouts / 100).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Payouts Table */}
+        {payoutsList.length === 0 ? (
+          <div className="py-10 text-center text-xs text-slate-400 space-y-2">
+            <Send className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="font-bold text-slate-700">No PayPal Fast-Grants Disbursed Yet</p>
+            <p className="max-w-md mx-auto">
+              Click &ldquo;PayPal Payout&rdquo; on any approved relief need above to disburse immediate funds to a responder or certified supplier.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="text-[10px] uppercase text-slate-400 border-b border-slate-100">
+                  <th className="py-2.5 font-bold">Recipient / Lead</th>
+                  <th className="py-2.5 font-bold">Category</th>
+                  <th className="py-2.5 font-bold">PayPal Batch ID</th>
+                  <th className="py-2.5 font-bold">Relief Purpose</th>
+                  <th className="py-2.5 text-right font-bold">Amount</th>
+                  <th className="py-2.5 text-center font-bold">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {payoutsList.map((p) => (
+                  <tr key={p.payout_id} className="hover:bg-slate-50/60">
+                    <td className="py-3 font-bold text-slate-900">
+                      <div>
+                        <span>{p.recipient_name}</span>
+                        <span className="block text-[11px] font-mono text-slate-400 font-normal">
+                          {p.recipient_email}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold capitalize">
+                        {p.recipient_type.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="py-3 font-mono text-slate-600 text-[11px]">
+                      {p.payout_batch_id}
+                    </td>
+                    <td className="py-3 text-slate-600 max-w-xs truncate" title={p.purpose_note}>
+                      {p.purpose_note}
+                    </td>
+                    <td className="py-3 text-right font-bold text-slate-900">
+                      ${(p.amount_minor / 100).toFixed(2)}
+                    </td>
+                    <td className="py-3 text-center">
+                      <span className="px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 border border-mint-200 text-[10px] font-bold">
+                        ✓ {p.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* PayPal Payout Fast-Grant Modal */}
+      {payoutNeed && (
+        <PayPalPayoutModal
+          need={payoutNeed}
+          campaignCurrency={currency}
+          onClose={() => setPayoutNeed(null)}
+          onSuccess={handlePayoutSuccess}
+        />
       )}
     </div>
   );

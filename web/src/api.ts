@@ -217,6 +217,39 @@ export const api = {
     return request<PaymentItem[]>(`/campaigns/${campaignId}/payments`);
   },
 
+  // PayPal Outflow Payouts (Fast-Grants Disbursal)
+  async disbursePayPalPayout(
+    needId: string,
+    data: {
+      recipient_email: string;
+      recipient_name: string;
+      recipient_type: string;
+      amount_minor: number;
+      purpose_note: string;
+    }
+  ): Promise<any> {
+    return request(`/needs/${needId}/payout`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getCampaignPayouts(campaignId: string): Promise<any[]> {
+    return request(`/campaigns/${campaignId}/payouts`);
+  },
+
+  async simulateCrisis(campaignId: string, scenario: string = 'flash_flood_wave'): Promise<{
+    status: string;
+    scenario: string;
+    items_created: number;
+    details: any[];
+  }> {
+    return request(`/campaigns/${campaignId}/simulate-crisis`, {
+      method: 'POST',
+      body: JSON.stringify({ scenario }),
+    });
+  },
+
   // Recipient Public Portal
   async publicIntake(campaignId: string, message: string): Promise<{ request_id: string; access_token: string; status: string }> {
     return request(`/campaigns/${campaignId}/recipient-intake`, {

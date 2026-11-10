@@ -675,3 +675,4 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
     </div>
   );
 };
+
