@@ -13,7 +13,7 @@ import {
 const TOKEN_KEY = 'reliefrail_auth_token';
 
 export function getAuthToken(): string {
-  return localStorage.getItem(TOKEN_KEY) || '';
+  return localStorage.getItem(TOKEN_KEY) || 'demo-coordinator-token';
 }
 
 export function setAuthToken(token: string): void {
@@ -130,6 +130,45 @@ export const api = {
 
   async getUnreconciled(campaignId: string): Promise<UnreconciledItem[]> {
     return request<UnreconciledItem[]>(`/campaigns/${campaignId}/unreconciled`);
+  },
+
+  // Multimodal AI Receipt Scanner & Policy Audit
+  async scanAndAuditReceipt(
+    campaignId: string,
+    needId?: string,
+    imageBase64?: string,
+    sampleId?: string
+  ): Promise<any> {
+    return request('/receipts/scan-and-audit', {
+      method: 'POST',
+      body: JSON.stringify({
+        campaign_id: campaignId,
+        need_id: needId || null,
+        image_base64: imageBase64 || null,
+        sample_id: sampleId || null,
+      }),
+    });
+  },
+
+  async applyAuditedReceipt(
+    auditId: string,
+    needId: string,
+    reference: string,
+    note: string
+  ): Promise<{ status: string; ledger_id: string; receipt_id: string; amount_spent_minor: number }> {
+    return request('/receipts/audit/apply', {
+      method: 'POST',
+      body: JSON.stringify({
+        audit_id: auditId,
+        need_id: needId,
+        reference,
+        note,
+      }),
+    });
+  },
+
+  async getReceiptAudits(campaignId: string): Promise<any[]> {
+    return request(`/campaigns/${campaignId}/receipt-audits`);
   },
 
   // Resources

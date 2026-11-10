@@ -62,6 +62,15 @@ app.include_router(receipts.router)
 app.include_router(recipient_router.router)
 app.include_router(paypal_router.router)
 
+# Mount compiled modern frontend if built
+try:
+    from fastapi.staticfiles import StaticFiles
+    dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", "dist")
+    if os.path.exists(dist_path):
+        app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
+except Exception:
+    pass
+
 # Backwards compatibility alias for older imports:
 db = get_db
 

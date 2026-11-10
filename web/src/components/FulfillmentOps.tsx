@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { ExceptionCaseItem, ResourceItem, UnreconciledItem } from '../types';
 import { HandDrawnCheck } from './OrganicIllustration';
+import { ReceiptScannerSection } from './ReceiptScannerSection';
 import {
   ReceiptText,
   AlertOctagon,
@@ -132,6 +133,15 @@ export const FulfillmentOps: React.FC<FulfillmentOpsProps> = ({
           attach receipts for finance reconciliation, and log in-kind supplies alongside cash.
         </p>
       </div>
+
+      {/* Star Player Feature: Multimodal AI Receipt Scanner & Policy Audit */}
+      <ReceiptScannerSection
+        campaignId={campaignId}
+        onRefreshBoard={() => {
+          loadOpsData();
+          if (onRefreshBoard) onRefreshBoard();
+        }}
+      />
 
       {statusMessage && (
         <div

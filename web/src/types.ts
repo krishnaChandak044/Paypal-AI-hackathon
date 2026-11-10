@@ -77,3 +77,56 @@ export interface PaymentItem {
   capture_id: string | null;
 }
 
+export interface ReceiptAuditItem {
+  name: string;
+  quantity: number;
+  price_minor: number;
+  category: string;
+  is_eligible: boolean;
+  flag_reason?: string | null;
+}
+
+export interface AuditAnomaly {
+  code: string;
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  item_name?: string | null;
+  amount_minor?: number | null;
+}
+
+export interface ReceiptAuditResult {
+  audit_id: string;
+  vendor: string;
+  receipt_reference: string;
+  occurred_at: string;
+  total_minor: number;
+  tax_minor: number;
+  eligible_total_minor: number;
+  ineligible_total_minor: number;
+  items: ReceiptAuditItem[];
+  anomalies: AuditAnomaly[];
+  verdict: 'passed' | 'warning' | 'flagged';
+  confidence: number;
+  need_comparison?: {
+    need_id: string;
+    need_description: string;
+    budget_minor: number;
+    eligible_spend_minor: number;
+    difference_minor: number;
+    is_over_budget: boolean;
+  } | null;
+}
+
+export interface HistoricalAuditItem {
+  id: string;
+  vendor: string;
+  receipt_reference: string;
+  total_minor: number;
+  eligible_total_minor: number;
+  ineligible_total_minor: number;
+  verdict: 'passed' | 'warning' | 'flagged';
+  occurred_at: string;
+  created_at: string;
+}
+
+

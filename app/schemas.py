@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -67,3 +67,50 @@ class ReceiptIn(BaseModel):
     receipt_reference: str = Field(min_length=4, max_length=200, description="Receipt reference or receipt number")
     occurred_at: str = Field(min_length=10, max_length=40, description="ISO-8601 date/time when purchase occurred")
 
+
+# Multimodal Receipt AI Scanner & Audit Validator Schemas
+class ReceiptScanIn(BaseModel):
+    campaign_id: str = Field(description="Target campaign ID")
+    need_id: Optional[str] = Field(default=None, description="Associated approved need to cross-validate against")
+    image_base64: Optional[str] = Field(default=None, description="Base64 encoded receipt image or data URL")
+    sample_id: Optional[str] = Field(default=None, description="Pre-loaded realistic demo receipt sample ID")
+
+
+class ReceiptAuditItem(BaseModel):
+    name: str
+    quantity: int = 1
+    price_minor: int
+    category: str
+    is_eligible: bool = True
+    flag_reason: Optional[str] = None
+
+
+class AuditAnomaly(BaseModel):
+    code: str
+    severity: Literal["critical", "warning", "info"]
+    message: str
+    item_name: Optional[str] = None
+    amount_minor: Optional[int] = None
+
+
+class ReceiptAuditOut(BaseModel):
+    audit_id: str
+    vendor: str
+    receipt_reference: str
+    occurred_at: str
+    total_minor: int
+    tax_minor: int
+    eligible_total_minor: int
+    ineligible_total_minor: int
+    items: List[ReceiptAuditItem]
+    anomalies: List[AuditAnomaly]
+    verdict: Literal["passed", "warning", "flagged"]
+    confidence: float
+    need_comparison: Optional[Dict[str, Any]] = None
+
+
+class ApplyAuditIn(BaseModel):
+    audit_id: str
+    need_id: str
+    reference: str
+    note: str

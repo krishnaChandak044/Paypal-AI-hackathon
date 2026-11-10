@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base, now, uid
@@ -73,7 +73,7 @@ class Payment(Base):
     order_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(String, default="pending", nullable=False)  # 'pending', 'confirmed', 'refunded', 'failed'
+    status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     capture_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
 
 
@@ -150,6 +150,27 @@ class Receipt(Base):
     reconciled_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
+class ReceiptAudit(Base):
+    __tablename__ = "receipt_audits"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    need_id: Mapped[Optional[str]] = mapped_column(ForeignKey("needs.id"), nullable=True)
+    ledger_id: Mapped[Optional[str]] = mapped_column(ForeignKey("ledger.id"), nullable=True)
+    vendor: Mapped[str] = mapped_column(String, nullable=False)
+    receipt_reference: Mapped[str] = mapped_column(String, nullable=False)
+    occurred_at: Mapped[str] = mapped_column(String, nullable=False)
+    total_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    tax_minor: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    eligible_total_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    ineligible_total_minor: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    items_json: Mapped[str] = mapped_column(Text, nullable=False)
+    anomalies_json: Mapped[str] = mapped_column(Text, nullable=False)
+    verdict: Mapped[str] = mapped_column(String, nullable=False)  # 'passed', 'warning', 'flagged'
+    confidence: Mapped[float] = mapped_column(Float, default=0.96, nullable=False)
+    created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
+
+
 class Job(Base):
     __tablename__ = "jobs"
 
@@ -159,4 +180,3 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
-

@@ -29,7 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'supporter', label: 'Support & Donate', icon: HeartHandshake },
     { id: 'board', label: 'Gap Board', icon: LayoutDashboard },
     { id: 'triage', label: 'AI Review & Plans', icon: Sparkles },
-    { id: 'fulfillment', label: 'Fulfillment & Ops', icon: ReceiptText },
+    { id: 'fulfillment', label: 'AI Receipt Audit', icon: ReceiptText, badge: 'Star Player' },
     { id: 'recipient', label: 'Seek Aid', icon: LifeBuoy },
   ];
 
@@ -74,6 +74,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-brand-500' : 'text-slate-400'}`} />
                   <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-mint-100 text-mint-800 border border-mint-200">
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -132,6 +137,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
+                {item.badge && (
+                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-mint-100 text-mint-800'}`}>
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}

@@ -2,7 +2,7 @@
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Engine
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def ensure_schema(engine: Engine, metadata: MetaData) -> None:
@@ -35,6 +35,13 @@ def ensure_schema(engine: Engine, metadata: MetaData) -> None:
 
         elif current_version == 1:
             metadata.tables["rate_buckets"].create(conn, checkfirst=True)
+            if "receipt_audits" in metadata.tables:
+                metadata.tables["receipt_audits"].create(conn, checkfirst=True)
+            conn.exec_driver_sql(f"PRAGMA user_version={SCHEMA_VERSION}")
+
+        elif current_version == 2:
+            if "receipt_audits" in metadata.tables:
+                metadata.tables["receipt_audits"].create(conn, checkfirst=True)
             conn.exec_driver_sql(f"PRAGMA user_version={SCHEMA_VERSION}")
 
         elif current_version != SCHEMA_VERSION:
