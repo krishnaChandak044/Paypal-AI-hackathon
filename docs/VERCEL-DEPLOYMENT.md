@@ -22,9 +22,9 @@ data.
 
 - Import krishnaChandak044/Paypal-AI-hackathon with the repository root as
   the Vercel project root.
-- Keep the detected FastAPI configuration. pyproject.toml identifies
-  app.main:app; vercel.json builds the React bundle and includes it in the
-  Python function.
+- The repository config defines one public FastAPI service. It builds the
+  React bundle and includes it in the Python function; the same app serves both
+  UI and API paths.
 - Add the environment variables below for Production and Preview as needed.
 - Deploy once to obtain the public HTTPS domain.
 
