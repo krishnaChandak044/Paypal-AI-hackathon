@@ -1,14 +1,17 @@
 """Explicit SQLite schema version gate with small, additive migrations."""
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, inspect, text
 from sqlalchemy.engine import Engine
 
 SCHEMA_VERSION = 10
 
 
 def ensure_schema(engine: Engine, metadata: MetaData) -> None:
-    """Validate or incrementally upgrade the local SQLite schema."""
+    """Apply the local SQLite migration chain or initialize an empty PostgreSQL DB."""
+    if engine.dialect.name == "postgresql":
+        _ensure_postgres_schema(engine, metadata)
+        return
     if engine.dialect.name != "sqlite":
-        raise RuntimeError("ReliefRail currently supports SQLite only")
+        raise RuntimeError(f"Unsupported database dialect: {engine.dialect.name}")
 
     with engine.begin() as conn:
         version = conn.exec_driver_sql("PRAGMA user_version").scalar_one()
@@ -114,3 +117,43 @@ def ensure_schema(engine: Engine, metadata: MetaData) -> None:
             raise RuntimeError(
                 f"Unsupported database schema version {version}; expected {SCHEMA_VERSION}"
             )
+
+
+def _ensure_postgres_schema(engine: Engine, metadata: MetaData) -> None:
+    """Initialize a fresh managed PostgreSQL database; never guess at legacy migrations."""
+    with engine.begin() as conn:
+        # Serialize simultaneous cold starts so create_all and the version row
+        # are installed once, atomically, across Vercel function instances.
+        conn.execute(text("SELECT pg_advisory_xact_lock(734921864201)"))
+        tables = set(inspect(conn).get_table_names())
+        marker = "reliefrail_schema_version"
+
+        if marker in tables:
+            version = conn.execute(
+                text(f"SELECT version FROM {marker} WHERE id = 1 FOR UPDATE")
+            ).scalar_one_or_none()
+            if version != SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"Unsupported PostgreSQL schema version {version}; expected {SCHEMA_VERSION}. "
+                    "Back up the database and apply an explicit migration."
+                )
+            return
+
+        app_tables = tables.intersection(metadata.tables)
+        if app_tables:
+            raise RuntimeError(
+                "PostgreSQL contains ReliefRail tables but no schema version marker. "
+                "Refusing to modify an unversioned database."
+            )
+
+        metadata.create_all(conn)
+        conn.execute(
+            text(
+                f"CREATE TABLE {marker} "
+                "(id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(f"INSERT INTO {marker} (id, version) VALUES (1, :version)"),
+            {"version": SCHEMA_VERSION},
+        )

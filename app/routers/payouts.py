@@ -8,9 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
-from ..database import engine, get_db, now, uid
+from ..database import engine, get_db, lock_campaign_for_write, now, uid
 from ..ledger import calculate_balance
-from ..models import AidRequest, Ledger, Member, Need, Payout
+from ..models import AidRequest, Campaign, Ledger, Member, Need, Payout
 from ..payouts import (
     apply_payout_status,
     execute_paypal_payout,
@@ -110,6 +110,7 @@ async def disburse_payout(
     if not req:
         raise HTTPException(status_code=404, detail="Associated aid request not found")
 
+    lock_campaign_for_write(session, Campaign, req.campaign_id)
     c = campaign(session, req.campaign_id, current_member)
 
     if need.status != "approved":

@@ -64,7 +64,7 @@ sequenceDiagram
     participant UI as ReliefRail web app
     participant API as FastAPI backend
     participant PayPal as PayPal Sandbox
-    participant DB as SQLite ledger
+    participant DB as SQLite locally / PostgreSQL on Vercel
 
     Supporter->>UI: Choose campaign contribution
     UI->>API: Create order
@@ -135,7 +135,7 @@ flowchart TB
 |---|---|
 | Frontend | React, TypeScript, Vite, Tailwind CSS |
 | Backend | Python, FastAPI, Pydantic, SQLAlchemy |
-| Persistence | SQLite for local/demo use |
+| Persistence | SQLite locally; PostgreSQL for Vercel deployments |
 | Payments | PayPal Orders, webhook verification, Payouts and subscription APIs in Sandbox |
 | AI integration | Optional Meta Model API; synthetic demo gating |
 | Operations | Reconciliation worker, maintenance/backup and retention-redaction commands |
@@ -161,6 +161,8 @@ cp .env.example .env
 ```
 
 Set a strong local `BOOTSTRAP_SECRET` in `.env`. For a basic local run, SQLite and sandbox defaults are configured in the example file. Add the PayPal Sandbox client ID and secret to enable checkout. Keep `.env` private; never commit credentials.
+
+For hosted deployment on Vercel with managed PostgreSQL, follow [docs/VERCEL-DEPLOYMENT.md](docs/VERCEL-DEPLOYMENT.md). The PostgreSQL initializer creates a fresh schema only; it does not import local SQLite records.
 
 Load environment variables and start the API:
 
@@ -249,7 +251,7 @@ See `BACKEND.md` for deeper implementation and operational notes.
 
 ## Current limitations and roadmap
 
-ReliefRail is a substantial prototype, but it is not ready to operate real disaster relief. The current build is oriented around one local SQLite instance and PayPal Sandbox. It has no verified production-grade offline/SMS intake, local merchant inventory network, automated delivery confirmation, or live payment configuration. Some operational and geographic views are synthetic; forecasts rely on fixed assumptions. It has not completed an independent security, privacy, legal, accessibility, or disaster-operations assessment.
+ReliefRail is a substantial prototype, but it is not ready to operate real disaster relief. Local development uses SQLite; hosted Vercel deployments require a managed PostgreSQL database and PayPal Sandbox. It has no verified production-grade offline/SMS intake, local merchant inventory network, automated delivery confirmation, or live payment configuration. Some operational and geographic views are synthetic; forecasts rely on fixed assumptions. It has not completed an independent security, privacy, legal, accessibility, or disaster-operations assessment.
 
 Before a real pilot, the project would need at least: threat modeling and security review; a production-grade persistence and deployment design; consent and retention policies reviewed with affected communities; incident response and access monitoring; accessible and low-bandwidth/offline workflows; payout and reconciliation runbooks; independent validation of accounting and operational controls; and a controlled pilot with experienced relief organizations.
 

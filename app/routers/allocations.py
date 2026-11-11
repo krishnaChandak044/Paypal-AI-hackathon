@@ -3,9 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
-from ..database import engine, get_db
+from ..database import engine, get_db, lock_campaign_for_write
 from ..ledger import calculate_balance
-from ..models import AidRequest, Ledger, Member, Need
+from ..models import AidRequest, Campaign, Ledger, Member, Need
 from ..schemas import AllocationIn, SettlementIn
 
 router = APIRouter(tags=["Allocations & Ledger Settlements"])
@@ -30,6 +30,7 @@ def reserve_funds(
         raise HTTPException(status_code=404, detail="Need not found")
 
     req = session.get(AidRequest, need.request_id)
+    lock_campaign_for_write(session, Campaign, req.campaign_id)
     campaign(session, req.campaign_id, current_member)
 
     if need.status != "approved":
@@ -95,6 +96,7 @@ def record_spend(
         raise HTTPException(status_code=404, detail="Need not found")
 
     req = session.get(AidRequest, need.request_id)
+    lock_campaign_for_write(session, Campaign, req.campaign_id)
     campaign(session, req.campaign_id, current_member)
 
     entries = session.scalars(
@@ -148,6 +150,7 @@ def release_reservation(
         raise HTTPException(status_code=404, detail="Need not found")
 
     req = session.get(AidRequest, need.request_id)
+    lock_campaign_for_write(session, Campaign, req.campaign_id)
     campaign(session, req.campaign_id, current_member)
 
     entries = session.scalars(

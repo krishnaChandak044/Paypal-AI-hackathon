@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
-from ..database import engine, get_db, now, uid
+from ..database import engine, get_db, lock_campaign_for_write, now, uid
 from ..models import (
     AidRequest,
     Campaign,
@@ -171,6 +171,8 @@ async def capture_paypal_order(
         session.connection().exec_driver_sql("BEGIN IMMEDIATE")
 
     payment = session.scalar(select(Payment).where(Payment.order_id == order_id))
+    lock_campaign_for_write(session, Campaign, payment.campaign_id)
+    payment = session.scalar(select(Payment).where(Payment.order_id == order_id))
     apply_capture(session, payment, captures[0])
     session.commit()
 
@@ -233,6 +235,17 @@ async def paypal_webhook_handler(
         session.connection().exec_driver_sql("BEGIN IMMEDIATE")
         if session.get(WebhookEvent, event_id):
             return {"status": "duplicate"}
+    elif engine.dialect.name == "postgresql":
+        # Serialize duplicate deliveries of one provider event across
+        # concurrent Vercel function instances.
+        from sqlalchemy import text
+
+        session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:event_id, 0))"),
+            {"event_id": event_id},
+        )
+        if session.get(WebhookEvent, event_id):
+            return {"status": "duplicate"}
 
     if event_type == "PAYMENT.CAPTURE.COMPLETED":
         capture = event_body.get("resource") or {}
@@ -247,6 +260,7 @@ async def paypal_webhook_handler(
             else None
         )
         if payment:
+            lock_campaign_for_write(session, Campaign, payment.campaign_id)
             apply_capture(session, payment, capture)
 
     elif event_type == "PAYMENT.CAPTURE.REFUNDED":
@@ -265,6 +279,7 @@ async def paypal_webhook_handler(
             else None
         )
         if payment:
+            lock_campaign_for_write(session, Campaign, payment.campaign_id)
             money = refund.get("amount") or {}
             if money.get("currency_code") != payment.currency:
                 raise HTTPException(status_code=409, detail="Refund currency does not match its capture")
@@ -276,6 +291,7 @@ async def paypal_webhook_handler(
         reversal = event_body.get("resource") or {}
         payment = session.scalar(select(Payment).where(Payment.capture_id == reversal.get("id")))
         if payment:
+            lock_campaign_for_write(session, Campaign, payment.campaign_id)
             money = reversal.get("amount") or {}
             if money.get("currency_code") != payment.currency:
                 raise HTTPException(status_code=409, detail="Reversal currency does not match its capture")
@@ -299,6 +315,7 @@ async def paypal_webhook_handler(
         payment = session.scalar(select(Payment).where(Payment.capture_id == capture_id)) if capture_id else None
         dispute_amount = resource.get("dispute_amount") or {}
         if dispute_id and payment and dispute_amount.get("currency_code") == payment.currency:
+            lock_campaign_for_write(session, Campaign, payment.campaign_id)
             amount_minor = amount_minor_from_provider(dispute_amount.get("value"))
             if amount_minor > payment.amount_minor:
                 raise HTTPException(status_code=409, detail="Dispute amount exceeds its capture")

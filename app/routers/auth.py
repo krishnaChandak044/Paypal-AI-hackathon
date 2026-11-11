@@ -5,6 +5,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..auth import actor, log, require
@@ -31,6 +32,9 @@ def bootstrap(
 
     if engine.dialect.name == "sqlite":
         session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+    elif engine.dialect.name == "postgresql":
+        # Only one cold start/bootstrap request may create the first admin.
+        session.execute(text("SELECT pg_advisory_xact_lock(734921864202)"))
 
     existing_org = session.scalar(select(Organization.id).limit(1))
     if existing_org:

@@ -6,9 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
-from ..database import engine, get_db, now, uid
+from ..database import engine, get_db, lock_campaign_for_write, now, uid
 from ..ledger import calculate_balance
-from ..models import AidRequest, Ledger, Member, Need, Receipt, ReceiptAudit
+from ..models import AidRequest, Campaign, Ledger, Member, Need, Receipt, ReceiptAudit
 from ..receipt_scanner import evaluate_receipt_audit, extract_receipt_from_image_or_sample
 from ..schemas import ApplyAuditIn, ReceiptAuditOut, ReceiptIn, ReceiptScanIn
 
@@ -144,6 +144,7 @@ def apply_audited_receipt(
         raise HTTPException(status_code=404, detail="Need not found")
 
     req = session.get(AidRequest, need.request_id)
+    lock_campaign_for_write(session, Campaign, req.campaign_id)
     campaign(session, req.campaign_id, current_member)
 
     # Calculate current held reservation
