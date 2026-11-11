@@ -25,11 +25,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [tempToken, setTempToken] = useState(authToken);
 
-  const navItems = [
+  const navItems: { id: string; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'supporter', label: 'Support & Donate', icon: HeartHandshake },
     { id: 'board', label: 'Gap Board', icon: LayoutDashboard },
     { id: 'triage', label: 'AI Review & Plans', icon: Sparkles },
-    { id: 'fulfillment', label: 'AI Receipt Audit', icon: ReceiptText, badge: 'Star Player' },
+    { id: 'fulfillment', label: 'Receipt Review', icon: ReceiptText },
     { id: 'recipient', label: 'Seek Aid', icon: LifeBuoy },
   ];
 

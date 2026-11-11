@@ -84,6 +84,7 @@ def test_confirmed_payout_is_idempotent_and_failure_releases_reserve():
         assert payout.status == "SUCCESS"
         assert calculate_balance(session, campaign.id) == {
             "confirmed_minor": 1000, "reserved_minor": 0, "spent_minor": 600, "available_minor": 400,
+            "deficit_minor": 0,
         }
         assert len(session.scalars(select(Ledger).where(Ledger.reference == f"paypal:payout:spend:{payout.id}")).all()) == 1
 

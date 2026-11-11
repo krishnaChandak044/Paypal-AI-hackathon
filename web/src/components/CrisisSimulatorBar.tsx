@@ -67,10 +67,10 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             type="button"
             onClick={() => onNavigateTab('triage')}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 shadow-sm text-[11px] font-semibold transition-all"
-            title="Inspect AI Semantic Deduplication & Anti-Fraud Radar"
+            title="Inspect deterministic request similarity signals for coordinator review"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span>2. Anti-Fraud Radar</span>
+            <span>2. Similarity Review</span>
           </button>
 
           <span className="text-slate-300 hidden sm:inline">&bull;</span>

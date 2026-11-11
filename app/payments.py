@@ -4,9 +4,10 @@ from typing import Any, Dict, Optional
 
 import httpx
 from fastapi import HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .models import Ledger, Payment
+from .models import Ledger, Payment, ProviderRefund
 
 PAYPAL_BASE_URL = "https://api-m.sandbox.paypal.com"
 
@@ -14,6 +15,18 @@ PAYPAL_BASE_URL = "https://api-m.sandbox.paypal.com"
 def amount_string(minor: int) -> str:
     """Formats minor currency units into a standard decimal string (e.g. 100 -> '1.00')."""
     return f"{Decimal(minor) / 100:.2f}"
+
+
+def amount_minor_from_provider(value: Any) -> int:
+    """Parse a provider amount without float rounding; reject sub-cent/negative values."""
+    try:
+        amount = Decimal(str(value))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid provider amount") from exc
+    minor = amount * 100
+    if not amount.is_finite() or minor != minor.to_integral_value() or minor <= 0:
+        raise HTTPException(status_code=400, detail="Invalid provider amount")
+    return int(minor)
 
 
 async def get_access_token(client: httpx.AsyncClient) -> str:
@@ -82,9 +95,9 @@ def apply_capture(session: Session, payment: Payment, capture: Dict[str, Any]) -
     if not capture_id:
         raise HTTPException(status_code=502, detail="Capture ID missing")
 
-    if payment.status == "confirmed":
-        if payment.capture_id == capture_id:
-            return False  # Already applied
+    if payment.capture_id == capture_id:
+        return False  # Already applied, including after a later partial/full refund
+    if payment.status in {"confirmed", "partially_refunded", "refunded"}:
         raise HTTPException(status_code=409, detail="Conflicting capture")
 
     if payment.capture_id and payment.capture_id != capture_id:
@@ -101,4 +114,43 @@ def apply_capture(session: Session, payment: Payment, capture: Dict[str, Any]) -
             reference=f"paypal:capture:{capture_id}",
         )
     )
+    return True
+
+
+def apply_provider_refund(
+    session: Session,
+    payment: Payment,
+    amount_minor: int,
+    event_id: str,
+    event_type: str,
+) -> bool:
+    """Apply a verified refund/reversal once while enforcing capture-level cumulative bounds."""
+    if session.get(ProviderRefund, event_id):
+        return False
+    if payment.status not in {"confirmed", "partially_refunded", "refunded"}:
+        raise HTTPException(status_code=409, detail="Refund references an unconfirmed capture")
+    already_refunded = session.scalar(
+        select(func.coalesce(func.sum(ProviderRefund.amount_minor), 0)).where(
+            ProviderRefund.transaction_id == payment.capture_id
+        )
+    ) or 0
+    if amount_minor <= 0 or already_refunded + amount_minor > payment.amount_minor:
+        raise HTTPException(status_code=409, detail="Refund amount exceeds the unrefunded capture balance")
+
+    session.add(ProviderRefund(
+        event_id=event_id,
+        transaction_id=payment.capture_id,
+        campaign_id=payment.campaign_id,
+        amount_minor=amount_minor,
+        currency=payment.currency,
+        event_type=event_type,
+    ))
+    session.add(Ledger(
+        campaign_id=payment.campaign_id,
+        kind="refund",
+        amount_minor=amount_minor,
+        reference=f"paypal:{event_type.lower().replace('.', ':')}:{event_id}",
+    ))
+    payment.refunded_minor = already_refunded + amount_minor
+    payment.status = "refunded" if payment.refunded_minor == payment.amount_minor else "partially_refunded"
     return True

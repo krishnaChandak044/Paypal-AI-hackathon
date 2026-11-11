@@ -16,7 +16,7 @@ PROHIBITED_PAYOUT_TERMS = [
 ]
 
 
-def validate_payout_compliance(purpose_note: str, need: Need) -> Tuple[bool, Optional[str]]:
+def screen_payout_purpose_keywords(purpose_note: str, need: Need) -> Tuple[bool, Optional[str]]:
     del need
     lowered = purpose_note.lower().strip()
     if len(lowered) < 5:

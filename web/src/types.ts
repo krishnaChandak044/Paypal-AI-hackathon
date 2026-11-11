@@ -3,6 +3,7 @@ export interface PoolBalance {
   reserved_minor: int;
   spent_minor: int;
   available_minor: int;
+  deficit_minor: int;
 }
 
 export type int = number;
@@ -20,6 +21,7 @@ export interface BoardNeed {
   reserved_minor: number;
   spent_minor: number;
   unmet_minor: number;
+  is_synthetic?: boolean;
   urgency?: 'immediate' | 'recovery';
 }
 
@@ -72,7 +74,7 @@ export interface UnreconciledItem {
 
 export interface PaymentItem {
   order_id: string;
-  status: 'pending' | 'confirmed' | 'refunded' | 'failed';
+  status: 'pending' | 'confirmed' | 'partially_refunded' | 'refunded' | 'failed';
   amount_minor: number;
   currency: string;
   capture_id: string | null;

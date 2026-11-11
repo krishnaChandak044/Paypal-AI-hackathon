@@ -71,7 +71,7 @@ def get_request_duplicates(
     session: Session = Depends(get_db),
     current_member: Member = Depends(actor),
 ):
-    """AI Anti-Fraud Radar: Analyzes semantic and location similarity to detect duplicate requests."""
+    """Return deterministic text/address similarity signals for coordinator review."""
     require(current_member)
     campaign(session, campaign_id, current_member)
 

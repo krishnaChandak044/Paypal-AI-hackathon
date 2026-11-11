@@ -1,0 +1,1 @@
+If a payout is confirmed successful, the reserve becomes a spend. If it fails, the reservation is released. If the provider state is unclear, the amount stays reserved while reconciliation checks again.

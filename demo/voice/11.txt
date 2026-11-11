@@ -1,0 +1,1 @@
+A receipt scan is an aid to review, not an audit certification. The coordinator checks the extracted details and reconciles them against the approved need.

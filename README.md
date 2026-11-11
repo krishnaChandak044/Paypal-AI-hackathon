@@ -28,12 +28,13 @@ ReliefRail prototypes a single, auditable workflow: collect and review requests,
 | Capability | What the prototype does | Important boundary |
 |---|---|---|
 | Relief request coordination | Organizer queue, recipient status/clarification flow, needs and approval state | It does not determine who qualifies for aid |
-| AI-assisted drafting | For explicitly synthetic demo requests, proposes a structured draft with estimates, questions, and uncertainty | Suggestions only; external AI is blocked for ordinary real requests; humans review every draft |
+| AI-assisted coordination | Drafts needs from synthetic requests and explains synthetic payout states from sanitized provider/ledger facts | Advisory only; it cannot approve aid or alter funds; no recipient identifiers or narrative text is sent to the payout explainer |
 | Shared pool accounting | Tracks contributions, reservations, spends, releases, and refunds as separate ledger entries | Not a bank account, custody product, or donor-restricted allocation engine |
-| PayPal contribution flow | Creates a Sandbox order, captures it server-side, validates webhook signatures, and records payment events | Sandbox only; no live-money claim |
+| PayPal contribution flow | Creates a Sandbox order, captures it server-side, validates webhook signatures, and accounts for cumulative partial/full refunds and reversals | Sandbox only; no live-money claim |
 | Payout lifecycle | Starts a PayPal Sandbox payout after a reserve and reconciles provider state before recording spend | Provider acceptance is not delivery confirmation; unresolved payouts remain pending for reconciliation |
 | Receipt review | Extracts receipt details where configured, applies deterministic checks, and supports human review and reconciliation | OCR/model output can be wrong; it is not an audit certification |
-| Duplicate assistance radar | Highlights potentially similar requests for coordinator review and supports controlled merging | Similarity is not fraud detection or an eligibility decision |
+| Similar-request review | Deterministic token/category/address heuristics highlight possible overlaps for coordinator review and controlled merging | Not an AI semantic model, fraud detector, or eligibility decision; no match can still be a false negative |
+| Dispute holds | Verified dispute webhooks create a reserve hold; seller-favorable resolution releases it, while a buyer-favorable result stays held until a provider debit/refund event is recorded | Not a dispute-management or evidence-submission system; unsupported/uncorrelated events require human follow-up |
 | Readiness and operations views | Pool/gap board, supporter summary, exceptions, resource and subscription projections, synthetic map | Some views are illustrative or assumption-based; projections are not spendable cash |
 
 ## Product screenshots
@@ -98,13 +99,15 @@ Ledger entries use integer minor-unit amounts and distinct contribution, reserve
 
 ## AI and decision boundaries
 
-ReliefRail uses AI as a drafting aid, not as an autonomous relief decision-maker.
+ReliefRail uses AI for review assistance, not as an autonomous relief decision-maker.
 
 - Synthetic requests can be used to demonstrate an external model integration when explicitly enabled.
 - The model can propose itemized needs, rough cost estimates, follow-up questions, and uncertainty notes.
+- For synthetic cases, it can explain payout status using sanitized PayPal Sandbox and ledger facts. Recipient email/name and request narrative are excluded from that prompt.
+- Uploaded receipt images are sent to Meta only after a human confirms the image is synthetic and links it to an approved need from a request marked synthetic in the database. Built-in receipt examples are local fixtures and do not call Meta.
 - A coordinator must inspect and approve any resulting need before it enters the fulfillment workflow.
 - The product does not ask the model to decide eligibility, detect fraud, rank human worthiness, or authorize payments.
-- Image/OCR extraction and duplicate similarity are fallible signals; they require human review.
+- Image/OCR extraction and deterministic duplicate similarity are fallible signals; they require human review.
 - Subscription runway and replenishment views use assumptions and must be treated as projections, not actual cash or guaranteed future funding.
 
 The current `.env.example` selects Meta Model API with `muse-spark-1.3`. External AI is disabled by default; configure a key only if you intend to run the synthetic demo. Never send real disaster-recipient data to an external model through this prototype.
@@ -192,7 +195,7 @@ Open the local URL printed by Vite. Keep the backend running; the Vite developme
 
 ### Optional AI-assisted synthetic demo
 
-Set `ALLOW_SYNTHETIC_AI=true` and configure `META_MODEL_API_KEY` in your local `.env`. The AI drafting flow is intentionally limited to explicitly synthetic requests. Do not use real recipient information in this demo. Restart the backend after changing environment variables.
+Set `ALLOW_SYNTHETIC_AI=true` and configure `META_MODEL_API_KEY` in your local `.env`. AI drafting and payout explanations require database-marked synthetic cases. Uploaded receipt images additionally require an approved need attached to a synthetic request and an explicit confirmation in the UI; built-in sample receipts do not call Meta. Never submit real recipient, supporter, merchant, or receipt data to the external model. Restart the backend after changing environment variables.
 
 ### Optional PayPal webhook testing
 

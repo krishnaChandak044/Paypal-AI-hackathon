@@ -263,7 +263,7 @@ async def extract_receipt_from_image_or_sample(
     if image_base64:
         # Multimodal Vision Prompt to Meta API
         prompt = (
-            "You are a disaster relief receipt forensic auditor. Analyze this receipt photo. "
+            "Extract visible fields from this explicitly synthetic demo receipt image. "
             "Extract: vendor name, receipt reference ID, purchase date (YYYY-MM-DD), itemized lines "
             "(name, quantity, price_minor in cents, category), tax_minor, and total_minor. "
             "Return JSON only: {\"vendor\":\"...\", \"receipt_reference\":\"...\", \"occurred_at\":\"...\", "

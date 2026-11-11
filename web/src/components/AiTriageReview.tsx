@@ -42,7 +42,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
 
-  // Anti-Fraud Radar & Semantic Deduplication state
+  // Deterministic request-similarity review state
   const [radarSummary, setRadarSummary] = useState<Record<string, RadarSummaryItem>>({});
   const [duplicatesResult, setDuplicatesResult] = useState<RequestDuplicatesResult | null>(null);
   const [isLoadingDuplicates, setIsLoadingDuplicates] = useState(false);
@@ -250,10 +250,10 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-brand-600 font-semibold text-xs tracking-wider uppercase">
             <Radio className="w-4 h-4 text-brand-500 animate-pulse" />
-            <span>AI Triage &amp; Anti-Fraud Radar</span>
+            <span>AI drafting + request similarity review</span>
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 mt-1">
-            Request Triage &amp; Semantic Deduplication
+            Request Triage &amp; Similarity Signals
           </h2>
           <p className="text-sm text-slate-500 max-w-2xl mt-1">
             AI drafts suggested needs for human review. Similarity signals can surface overlapping
@@ -267,7 +267,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
           onClick={handleSimulateDuplicate}
           disabled={isSimulatingDuplicate}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 shadow-sm transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50 shrink-0"
-          title="Simulate a duplicate crisis intake from 104 Riverside Dr to test the Anti-Fraud Radar"
+          title="Add a fictional request pair to demonstrate coordinator-led similarity review"
         >
           <Zap className="w-4 h-4 text-amber-600" />
           <span>{isSimulatingDuplicate ? 'Adding fictional pair...' : '⚡ Test Synthetic Duplicate Pair'}</span>
@@ -415,7 +415,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
         <div className="lg:col-span-7 space-y-6">
           {selectedRequest ? (
             <div className="space-y-6">
-              {/* ANTI-FRAUD RADAR: DUPLICATE ALERT CARD */}
+              {/* Deterministic similarity signal for human review */}
               {topMatch && !isSelectedMerged && (
                 <div className="bg-gradient-to-br from-amber-50/90 via-amber-50/50 to-orange-50/40 rounded-4xl p-6 border-2 border-amber-300 shadow-soft space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/80 pb-4">
@@ -426,7 +426,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
-                            Anti-Fraud Radar Alert
+                            Similarity review signal
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-300">
                             {topMatch.similarity_percentage}% High Similarity
@@ -440,7 +440,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
 
                     <div className="text-right sm:text-right shrink-0">
                       <span className="text-[10px] font-bold uppercase text-amber-700 block">
-                        Duplicate Exposure Risk
+                        Approved budget on matched request
                       </span>
                       <span className="text-base font-bold text-amber-950">
                         ${(topMatch.potential_savings_minor / 100).toFixed(2)}
@@ -547,12 +547,12 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                 </div>
               )}
 
-              {/* Clean Anti-Fraud State if No Duplicates */}
+              {/* No matching similarity signal */}
               {!topMatch && !isLoadingDuplicates && !isSelectedMerged && (
                 <div className="bg-sky-50/60 rounded-2xl px-4 py-3 border border-sky-200/80 flex items-center justify-between text-xs text-slate-700">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-brand-600" />
-                    <span><strong>Anti-Fraud Radar Clean:</strong> No overlapping household claims or identical equipment detected across active intake.</span>
+                    <span><strong>No match above this heuristic threshold.</strong> Similarity signals can miss overlaps and are not fraud or eligibility findings.</span>
                   </div>
                   <span className="text-[10px] font-bold text-brand-700 bg-white px-2 py-0.5 rounded-lg border border-sky-200">
                     0% Overlap

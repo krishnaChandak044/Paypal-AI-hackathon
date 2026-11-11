@@ -30,6 +30,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
 }) => {
   const [selectedSample, setSelectedSample] = useState<string>('sample_infant_grocery');
   const [customImageBase64, setCustomImageBase64] = useState<string | null>(null);
+  const [syntheticImageConfirmed, setSyntheticImageConfirmed] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [needs, setNeeds] = useState<BoardNeed[]>([]);
   const [selectedNeedId, setSelectedNeedId] = useState<string>('');
@@ -83,11 +84,18 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
     reader.onload = () => {
       const result = reader.result as string;
       setCustomImageBase64(result);
+      setSyntheticImageConfirmed(false);
       setImagePreview(result);
       setSelectedSample('');
       setAuditResult(null);
       setApplyResult(null);
       setErrorMessage(null);
+      const syntheticNeed = needs.find((need) => need.is_synthetic);
+      if (syntheticNeed) {
+        setSelectedNeedId(syntheticNeed.need_id);
+      } else {
+        setErrorMessage('External receipt extraction requires an approved need linked to a synthetic demo request. Create/select one first.');
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -95,6 +103,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
   const handleSelectSample = (sampleId: string) => {
     setSelectedSample(sampleId);
     setCustomImageBase64(null);
+    setSyntheticImageConfirmed(false);
     setImagePreview(null);
     setAuditResult(null);
     setApplyResult(null);
@@ -123,7 +132,8 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
         campaignId,
         selectedNeedId || undefined,
         customImageBase64 || undefined,
-        selectedSample || undefined
+        selectedSample || undefined,
+        syntheticImageConfirmed
       );
       setAuditResult(res);
       // Refresh audit history list
@@ -175,17 +185,17 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-100/80 border border-sky-200 text-brand-700 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5 text-brand-500" />
-            <span>Star Player &bull; Multimodal AI Vision &amp; Policy Ledger Validator</span>
+            <span>Receipt extraction + deterministic review checks</span>
           </div>
 
-          <span className="text-[11px] font-semibold tracking-wide px-3 py-1 rounded-full bg-mint-100 text-mint-800 border border-mint-200">
-            FEMA &amp; Audit Ready
+          <span className="text-[11px] font-semibold tracking-wide px-3 py-1 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+            Human review required
           </span>
         </div>
 
         <div className="space-y-2">
           <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
-            Multimodal Receipt Scanner &amp; Policy Audit
+            Receipt Review &amp; Ledger Reconciliation
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-3xl leading-relaxed">
             Volunteers may buy emergency groceries and hardware locally. Receipt images can be extracted by the configured vision provider or a labelled synthetic sample; deterministic rules flag selected prohibited items and compare totals with the linked approved need. A pass is a review aid, not proof of eligibility or delivery.
@@ -331,6 +341,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                   onClick={() => {
                     setImagePreview(null);
                     setCustomImageBase64(null);
+                    setSyntheticImageConfirmed(false);
                     setSelectedSample('sample_infant_grocery');
                   }}
                   className="text-xs text-slate-500 hover:text-slate-800 underline block text-center"
@@ -339,6 +350,18 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                 </button>
               )}
             </div>
+
+            {customImageBase64 && (
+              <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                <input
+                  type="checkbox"
+                  checked={syntheticImageConfirmed}
+                  onChange={(e) => setSyntheticImageConfirmed(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>I confirm this image is synthetic and contains no real person’s or organization’s private information. It will be sent to Meta for extraction.</span>
+              </label>
+            )}
 
             {/* Target Approved Need Dropdown */}
             <div className="space-y-1.5 pt-2 border-t border-slate-100">
@@ -351,24 +374,24 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                 className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-sm"
                 aria-label="Select target need"
               >
-                {needs.map((n) => (
+                {(customImageBase64 ? needs.filter((n) => n.is_synthetic) : needs).map((n) => (
                   <option key={n.need_id} value={n.need_id}>
                     {n.description} (Approved Budget: ${(n.requested_minor / 100).toFixed(2)})
                   </option>
                 ))}
-                {needs.length === 0 && (
-                  <option value="">No approved needs found (General Relief Pool)</option>
+                {(customImageBase64 ? needs.filter((n) => n.is_synthetic).length === 0 : needs.length === 0) && (
+                  <option value="">{customImageBase64 ? 'No approved synthetic-demo need found' : 'No approved needs found (General Relief Pool)'}</option>
                 )}
               </select>
               <p className="text-[11px] text-slate-500">
-                The AI will verify that eligible line items match the allocated category and stay within budget.
+                Deterministic checks compare arithmetic and selected item keywords with this budget. They do not verify eligibility or compliance.
               </p>
             </div>
 
             {/* Execute Audit Button */}
             <button
               type="button"
-              disabled={isAuditing}
+              disabled={isAuditing || Boolean(customImageBase64 && !syntheticImageConfirmed)}
               onClick={handleRunAudit}
               className={`w-full py-3.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
                 isAuditing
@@ -379,12 +402,12 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
               {isAuditing ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Auditing Receipt with Vision AI &amp; Policy Rules...</span>
+                  <span>Extracting receipt details and running configured rules...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-sky-200" />
-                  <span>Run Multimodal AI Forensic Audit</span>
+                  <span>Review receipt extraction and rule checks</span>
                 </>
               )}
             </button>
@@ -398,7 +421,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
           )}
         </div>
 
-        {/* Right Column: Forensic Audit Report */}
+        {/* Right Column: Receipt Review Report */}
         <div className="lg:col-span-7 space-y-6">
           {!auditResult ? (
             <div className="bg-white rounded-3xl p-10 border border-slate-200/90 shadow-soft text-center space-y-3">
@@ -409,7 +432,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                 Awaiting Receipt Document
               </h4>
               <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Select a 1-click scenario on the left or upload your own store slip, then press &ldquo;Run Multimodal AI Forensic Audit&rdquo; to extract line items and test deterministic compliance checks.
+                Choose a synthetic sample, or upload an explicitly synthetic receipt image. Uploaded images are sent to the configured Meta vision model; never upload a real receipt or personal information.
               </p>
             </div>
           ) : (
@@ -489,7 +512,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                   </span>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-soft">
-                  <span className="text-[10px] font-bold text-brand-600 uppercase block">Tax Verified</span>
+                  <span className="text-[10px] font-bold text-brand-600 uppercase block">Tax amount</span>
                   <span className="text-base font-bold text-brand-700">
                     ${(auditResult.tax_minor / 100).toFixed(2)}
                   </span>
@@ -501,7 +524,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                 <div className="bg-rose-50/70 border border-rose-200 rounded-2xl p-4 space-y-2.5">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
                     <ShieldAlert className="w-4 h-4 text-rose-600" />
-                    <span>Forensic Accounting &amp; Policy Findings ({auditResult.anomalies.length}):</span>
+                    <span>Configured arithmetic and keyword findings ({auditResult.anomalies.length}):</span>
                   </div>
                   <div className="space-y-1.5">
                     {auditResult.anomalies.map((a, idx) => (
@@ -624,7 +647,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-brand-600" />
               <h3 className="font-serif text-base font-bold text-slate-900">
-                Audit Trail &amp; Forensic Log
+                Receipt review history
               </h3>
             </div>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">

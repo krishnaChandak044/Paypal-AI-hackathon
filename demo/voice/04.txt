@@ -1,0 +1,1 @@
+Here, the coordinator reviews a synthetic request for essential supplies. Similarity signals can surface possible overlap, but they are only heuristics. They can miss a match, and they never decide eligibility or fraud.

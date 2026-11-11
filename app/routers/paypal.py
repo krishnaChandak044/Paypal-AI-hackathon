@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
@@ -15,12 +15,16 @@ from ..models import (
     Member,
     Ledger,
     Payment,
+    PaymentDispute,
+    ProviderRefund,
     Subscription,
     WebhookEvent,
 )
 from ..payments import (
     amount_string,
+    amount_minor_from_provider,
     apply_capture,
+    apply_provider_refund,
     paypal_request,
 )
 from ..schemas import JourneyStep, OrderIn, PayPalImpactJourneyOut
@@ -42,6 +46,29 @@ def paypal_checkout_context() -> Dict[str, str]:
         "user_action": "PAY_NOW",
         "shipping_preference": "NO_SHIPPING",
     }
+
+
+def release_dispute_holds(session: Session, payment: Payment, amount_minor: int, event_id: str) -> None:
+    """Release dispute holds only up to the provider-confirmed refund/reversal amount."""
+    disputes = session.scalars(
+        select(PaymentDispute)
+        .where(PaymentDispute.payment_id == payment.id, PaymentDispute.held_minor > 0)
+        .order_by(PaymentDispute.created_at.asc())
+    ).all()
+    remaining = amount_minor
+    for dispute in disputes:
+        if remaining <= 0:
+            break
+        released = min(remaining, dispute.held_minor)
+        session.add(Ledger(
+            campaign_id=payment.campaign_id,
+            kind="release",
+            amount_minor=released,
+            reference=f"paypal:dispute:release:{dispute.dispute_id}:{event_id}",
+        ))
+        dispute.held_minor -= released
+        remaining -= released
+        dispute.status = "PROVIDER_DEBIT_CONFIRMED" if dispute.held_minor == 0 else "PARTIALLY_DEBITED_REVIEW"
 
 
 @router.post("/campaigns/{campaign_id}/paypal/orders")
@@ -229,26 +256,94 @@ async def paypal_webhook_handler(
             .get("related_ids", {})
             .get("capture_id")
         )
+        if not capture_id:
+            up = next((link.get("href") for link in refund.get("links", []) if link.get("rel") == "up"), None)
+            capture_id = urlparse(up).path.rstrip("/").split("/")[-1] if up else None
         payment = (
             session.scalar(select(Payment).where(Payment.capture_id == capture_id))
             if capture_id
             else None
         )
-        if payment and payment.status == "confirmed":
+        if payment:
             money = refund.get("amount") or {}
-            if (
-                money.get("currency_code") == payment.currency
-                and money.get("value") == amount_string(payment.amount_minor)
-            ):
-                payment.status = "refunded"
-                session.add(
-                    Ledger(
-                        campaign_id=payment.campaign_id,
-                        kind="refund",
-                        amount_minor=payment.amount_minor,
-                        reference=f"paypal:refund:{event_id}",
-                    )
+            if money.get("currency_code") != payment.currency:
+                raise HTTPException(status_code=409, detail="Refund currency does not match its capture")
+            refunded = amount_minor_from_provider(money.get("value"))
+            if apply_provider_refund(session, payment, refunded, event_id, event_type):
+                release_dispute_holds(session, payment, refunded, event_id)
+
+    elif event_type == "PAYMENT.CAPTURE.REVERSED":
+        reversal = event_body.get("resource") or {}
+        payment = session.scalar(select(Payment).where(Payment.capture_id == reversal.get("id")))
+        if payment:
+            money = reversal.get("amount") or {}
+            if money.get("currency_code") != payment.currency:
+                raise HTTPException(status_code=409, detail="Reversal currency does not match its capture")
+            reversed_minor = amount_minor_from_provider(money.get("value"))
+            if apply_provider_refund(session, payment, reversed_minor, event_id, event_type):
+                release_dispute_holds(session, payment, reversed_minor, event_id)
+
+    elif event_type == "CUSTOMER.DISPUTE.CREATED":
+        resource = event_body.get("resource") or {}
+        dispute_id = resource.get("dispute_id") or resource.get("id")
+        transactions = resource.get("disputed_transactions") or []
+        capture_id = next((
+            transaction.get("seller_transaction_id")
+            or transaction.get("buyer_transaction_id")
+            or transaction.get("transaction_id")
+            for transaction in transactions
+            if transaction.get("seller_transaction_id")
+            or transaction.get("buyer_transaction_id")
+            or transaction.get("transaction_id")
+        ), None)
+        payment = session.scalar(select(Payment).where(Payment.capture_id == capture_id)) if capture_id else None
+        dispute_amount = resource.get("dispute_amount") or {}
+        if dispute_id and payment and dispute_amount.get("currency_code") == payment.currency:
+            amount_minor = amount_minor_from_provider(dispute_amount.get("value"))
+            if amount_minor > payment.amount_minor:
+                raise HTTPException(status_code=409, detail="Dispute amount exceeds its capture")
+            if not session.get(PaymentDispute, dispute_id):
+                dispute = PaymentDispute(
+                    dispute_id=dispute_id,
+                    payment_id=payment.id,
+                    campaign_id=payment.campaign_id,
+                    capture_id=payment.capture_id,
+                    amount_minor=amount_minor,
+                    held_minor=amount_minor,
+                    currency=payment.currency,
+                    status="OPEN_REVIEW",
                 )
+                session.add(dispute)
+                session.add(Ledger(
+                    campaign_id=payment.campaign_id,
+                    kind="reserve",
+                    amount_minor=amount_minor,
+                    reference=f"paypal:dispute:hold:{dispute_id}",
+                ))
+
+    elif event_type == "CUSTOMER.DISPUTE.RESOLVED":
+        resource = event_body.get("resource") or {}
+        dispute_id = resource.get("dispute_id") or resource.get("id")
+        dispute = session.get(PaymentDispute, dispute_id) if dispute_id else None
+        if dispute:
+            outcome = (resource.get("dispute_outcome") or {}).get("outcome_code")
+            dispute.outcome_code = outcome
+            if outcome in {"RESOLVED_SELLER_FAVOUR", "DENIED", "CANCELED_BY_BUYER"}:
+                if dispute.held_minor:
+                    session.add(Ledger(
+                        campaign_id=dispute.campaign_id,
+                        kind="release",
+                        amount_minor=dispute.held_minor,
+                        reference=f"paypal:dispute:release:{dispute_id}",
+                    ))
+                    dispute.held_minor = 0
+                dispute.status = "RESOLVED_RELEASED"
+            elif outcome in {"RESOLVED_BUYER_FAVOUR", "RESOLVED_WITH_PAYOUT", "ACCEPTED"}:
+                # Keep the disputed amount held until a verified capture reversal/refund
+                # posts the actual debit. That provider event will create the ledger entry.
+                dispute.status = "RESOLVED_AWAITING_PROVIDER_DEBIT"
+            else:
+                dispute.status = "RESOLVED_REQUIRES_REVIEW"
 
     elif event_type in {
         "BILLING.SUBSCRIPTION.ACTIVATED",
@@ -280,9 +375,11 @@ async def paypal_webhook_handler(
         value = amount.get("value") or amount.get("total")
         if subscription and sale_id:
             expected = amount_string(subscription.amount_minor)
-            if currency != subscription.currency or value != expected:
-                raise HTTPException(status_code=409, detail="Subscription sale amount or currency mismatch")
+            if currency != subscription.currency:
+                raise HTTPException(status_code=409, detail="Subscription sale currency mismatch")
             if event_type == "PAYMENT.SALE.COMPLETED":
+                if value != expected:
+                    raise HTTPException(status_code=409, detail="Subscription sale amount mismatch")
                 if subscription.status not in ("ACTIVE", "APPROVAL_PENDING", "LEGACY_UNVERIFIED"):
                     raise HTTPException(status_code=409, detail="Sale received for an inactive subscription")
                 subscription.status = "ACTIVE"
@@ -296,14 +393,28 @@ async def paypal_webhook_handler(
                         reference=reference,
                     ))
             else:
-                reference = f"paypal:subscription-refund:{sale_id}"
-                if not session.scalar(select(Ledger.id).where(Ledger.reference == reference)):
-                    session.add(Ledger(
-                        campaign_id=subscription.campaign_id,
-                        kind="refund",
-                        amount_minor=subscription.amount_minor,
-                        reference=reference,
-                    ))
+                refund_minor = amount_minor_from_provider(value)
+                refunded_before = session.scalar(
+                    select(func.coalesce(func.sum(ProviderRefund.amount_minor), 0)).where(
+                        ProviderRefund.transaction_id == sale_id
+                    )
+                ) or 0
+                if refunded_before + refund_minor > subscription.amount_minor:
+                    raise HTTPException(status_code=409, detail="Subscription refund exceeds this sale")
+                session.add(ProviderRefund(
+                    event_id=event_id,
+                    transaction_id=sale_id,
+                    campaign_id=subscription.campaign_id,
+                    amount_minor=refund_minor,
+                    currency=subscription.currency,
+                    event_type=event_type,
+                ))
+                session.add(Ledger(
+                    campaign_id=subscription.campaign_id,
+                    kind="refund",
+                    amount_minor=refund_minor,
+                    reference=f"paypal:subscription-refund:{event_id}",
+                ))
 
     session.add(WebhookEvent(id=event_id, event_type=event_type))
     session.commit()
@@ -330,10 +441,40 @@ def list_campaign_payments(
             "order_id": p.order_id,
             "status": p.status,
             "amount_minor": p.amount_minor,
+            "refunded_minor": p.refunded_minor,
             "currency": p.currency,
             "capture_id": p.capture_id,
         }
         for p in payments
+    ]
+
+
+@router.get("/campaigns/{campaign_id}/disputes")
+def list_campaign_disputes(
+    campaign_id: str,
+    session: Session = Depends(get_db),
+    current_member: Member = Depends(actor),
+):
+    """Lists provider-linked dispute holds and their human-review state."""
+    require(current_member, ("admin", "finance", "organizer"))
+    campaign(session, campaign_id, current_member)
+    disputes = session.scalars(
+        select(PaymentDispute)
+        .where(PaymentDispute.campaign_id == campaign_id)
+        .order_by(PaymentDispute.created_at.desc())
+    ).all()
+    return [
+        {
+            "dispute_id": d.dispute_id,
+            "capture_id": d.capture_id,
+            "amount_minor": d.amount_minor,
+            "held_minor": d.held_minor,
+            "currency": d.currency,
+            "status": d.status,
+            "outcome_code": d.outcome_code,
+            "created_at": d.created_at,
+        }
+        for d in disputes
     ]
 
 
@@ -358,13 +499,18 @@ async def get_paypal_order_journey(
         select(Ledger).where(Ledger.reference == f"paypal:capture:{payment.capture_id}")
     ) if payment.capture_id else None
     status = payment.status
-    if status not in {"pending", "confirmed", "refunded", "failed"}:
+    if status not in {"pending", "confirmed", "partially_refunded", "refunded", "failed"}:
         status = "pending"
     contribution_step = JourneyStep(
         stage=1,
         title="PayPal contribution",
         subtitle="Campaign emergency pool",
         description=(
+            f"${payment.amount_minor / 100:.2f} {payment.currency} was captured into the shared pool; "
+            f"${payment.refunded_minor / 100:.2f} has since been refunded. The remaining contribution is not individually earmarked."
+            if status == "partially_refunded" else
+            "The contribution was fully refunded; it is no longer available to the shared pool."
+            if status == "refunded" else
             f"${payment.amount_minor / 100:.2f} {payment.currency} was confirmed into the shared campaign pool. "
             "This contribution is not individually earmarked to a specific request."
             if status == "confirmed" else

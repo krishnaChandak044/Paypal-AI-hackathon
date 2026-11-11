@@ -29,11 +29,28 @@ async def scan_and_audit_receipt(
     require(current_member)
     c = campaign(session, body.campaign_id, current_member)
 
+    if body.image_base64 and not body.synthetic_demo_confirmed:
+        raise HTTPException(
+            status_code=403,
+            detail="Uploaded receipt images require explicit confirmation that they contain synthetic demo data only.",
+        )
+
     target_need = None
     if body.need_id:
         target_need = session.get(Need, body.need_id)
         if not target_need:
             raise HTTPException(status_code=404, detail="Target need not found")
+        target_request = session.get(AidRequest, target_need.request_id)
+        if not target_request or target_request.campaign_id != body.campaign_id:
+            raise HTTPException(status_code=404, detail="Target need not found in this campaign")
+    else:
+        target_request = None
+
+    if body.image_base64 and (not target_request or not target_request.is_synthetic):
+        raise HTTPException(
+            status_code=403,
+            detail="External receipt extraction is allowed only for a need attached to an explicitly synthetic request.",
+        )
 
     # 1. Extract raw receipt information via AI vision or scenario sample
     raw_receipt = await extract_receipt_from_image_or_sample(

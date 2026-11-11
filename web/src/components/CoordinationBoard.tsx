@@ -217,6 +217,12 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
         </div>
       </div>
 
+      {pool && pool.deficit_minor > 0 && (
+        <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <strong>Pool deficit recorded:</strong> ${(pool.deficit_minor / 100).toFixed(2)} {currency}. A verified refund or reversal exceeded currently unspent funds; new allocations will be blocked until the balance is replenished.
+        </div>
+      )}
+
       {actionMessage && (
         <div
           className={`p-4 rounded-2xl text-xs font-medium flex items-center gap-2 ${

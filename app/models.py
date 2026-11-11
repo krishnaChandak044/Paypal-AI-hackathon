@@ -76,6 +76,34 @@ class Payment(Base):
     currency: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     capture_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
+    refunded_minor: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class PaymentDispute(Base):
+    __tablename__ = "payment_disputes"
+
+    dispute_id: Mapped[str] = mapped_column(String, primary_key=True)
+    payment_id: Mapped[str] = mapped_column(ForeignKey("payments.id"), nullable=False)
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    capture_id: Mapped[str] = mapped_column(String, nullable=False)
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    held_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, default="OPEN_REVIEW", nullable=False)
+    outcome_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
+
+
+class ProviderRefund(Base):
+    __tablename__ = "provider_refunds"
+
+    event_id: Mapped[str] = mapped_column(String, primary_key=True)
+    transaction_id: Mapped[str] = mapped_column(String, nullable=False)
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String, nullable=False)
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
 
 
 class WebhookEvent(Base):

@@ -1,7 +1,7 @@
-"""AI Semantic Deduplication & Anti-Fraud Radar for Community Aid Triage.
+"""Deterministic text, keyword, and address similarity for human request review.
 
-Detects duplicate, overlapping, or multi-channel aid claims for the same household
-or equipment to prevent double payouts and pool depletion during disaster responses.
+Scores are heuristics only. They do not identify fraud, establish household identity,
+or decide eligibility; coordinators inspect every suggested match before merging.
 """
 import os
 import re
@@ -103,7 +103,7 @@ def compute_similarity(
     msg1: str,
     msg2: str,
 ) -> Tuple[float, List[str], Optional[str]]:
-    """Computes a multi-factor semantic and location similarity score between two messages.
+    """Compute a deterministic lexical/category/address similarity heuristic.
     
     Returns:
         (similarity_score_between_0_and_1, overlapping_keywords, detected_address)
@@ -171,7 +171,7 @@ def detect_duplicates_for_request(
     target_request_id: str,
     threshold: float = 0.65,
 ) -> RequestDuplicatesOut:
-    """Scans all other active requests in the campaign to detect semantic duplicates."""
+    """Score other active campaign requests for possible textual/location overlap."""
     target_req = session.get(AidRequest, target_request_id)
     if not target_req:
         return RequestDuplicatesOut(
@@ -278,25 +278,19 @@ def merge_duplicate_requests(
     dup_needs = session.scalars(
         select(Need).where(Need.request_id == duplicate_req.id)
     ).all()
-    primary_needs = session.scalars(
-        select(Need).where(Need.request_id == primary_req.id)
-    ).all()
-
     if dup_needs:
         savings_minor = sum(n.amount_minor for n in dup_needs)
         # Update duplicate needs status to merged
         for n in dup_needs:
             n.status = "merged"
-    elif primary_needs:
-        savings_minor = sum(n.amount_minor for n in primary_needs)
     else:
-        savings_minor = 18500
+        savings_minor = 0
 
     # Mark duplicate request as merged
     duplicate_req.status = "merged"
 
     note = reason_note or (
-        f"Anti-Fraud Radar: Consolidated duplicate claims from same household to prevent double disbursement."
+        "Coordinator reviewed similar requests and chose to merge their records."
     )
 
     # Add audit revision to primary request
@@ -304,8 +298,8 @@ def merge_duplicate_requests(
         request_id=primary_req.id,
         actor_id=current_member.id,
         message=(
-            f"[Anti-Fraud Merge] Consolidated duplicate Request #{duplicate_req.id[:8]} "
-            f"('{duplicate_req.message[:80]}...'). Averted ${savings_minor / 100:.2f} duplicate payout exposure. "
+            f"[Similarity review merge] Consolidated Request #{duplicate_req.id[:8]} "
+            f"('{duplicate_req.message[:80]}...'). The matched request had ${savings_minor / 100:.2f} in approved need budget at merge time; this is not a claim of savings. "
             f"Note: {note}"
         ),
     )
@@ -316,8 +310,8 @@ def merge_duplicate_requests(
         request_id=duplicate_req.id,
         actor_id=current_member.id,
         message=(
-            f"[Anti-Fraud Merge] Merged into Request #{primary_req.id[:8]}. "
-            f"Status marked as merged to prevent duplicate disbursement."
+            f"[Similarity review merge] Merged into Request #{primary_req.id[:8]} "
+            "after coordinator review. Similarity does not establish fraud or eligibility."
         ),
     )
     session.add(rev_dup)
@@ -340,8 +334,8 @@ def merge_duplicate_requests(
         potential_savings_minor=savings_minor,
         audit_action="request.merged",
         message=(
-            f"Successfully merged duplicate Request #{duplicate_req.id[:8]} into Request #{primary_req.id[:8]}. "
-            f"Averted ${savings_minor / 100:.2f} in duplicate relief payouts. Logged in audit trail."
+            f"Merged Request #{duplicate_req.id[:8]} into Request #{primary_req.id[:8]} after coordinator action. "
+            f"${savings_minor / 100:.2f} is the matched request's approved need budget, not verified savings. Logged in audit trail."
         ),
     )
 

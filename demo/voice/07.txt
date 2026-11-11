@@ -1,0 +1,1 @@
+That distinction matters. An approved request is not the same as cash in the pool. A reservation is not a completed payout. The board makes those states visible instead of blending them into one optimistic number.

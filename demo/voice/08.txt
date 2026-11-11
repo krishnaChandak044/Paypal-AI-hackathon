@@ -1,0 +1,1 @@
+This demonstrates the payment plumbing without claiming live donations. Pool credit follows a confirmed capture. A retry does not create a second ledger credit for the same provider event.

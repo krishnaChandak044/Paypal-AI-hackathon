@@ -97,6 +97,7 @@ def get_coordination_board(
                     "reserved_minor": reserved,
                     "spent_minor": spent,
                     "unmet_minor": unmet,
+                    "is_synthetic": r.is_synthetic,
                 }
             )
 

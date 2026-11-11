@@ -144,7 +144,8 @@ export const api = {
     campaignId: string,
     needId?: string,
     imageBase64?: string,
-    sampleId?: string
+    sampleId?: string,
+    syntheticDemoConfirmed = false
   ): Promise<any> {
     return request('/receipts/scan-and-audit', {
       method: 'POST',
@@ -153,6 +154,7 @@ export const api = {
         need_id: needId || null,
         image_base64: imageBase64 || null,
         sample_id: sampleId || null,
+        synthetic_demo_confirmed: syntheticDemoConfirmed,
       }),
     });
   },
@@ -253,6 +255,16 @@ export const api = {
     return request(`/payouts/${payoutId}/retry`, { method: 'POST' });
   },
 
+  async explainPayout(payoutId: string): Promise<{
+    status: string;
+    facts: Record<string, unknown>;
+    explanation: string;
+    suggested_next_step: string;
+    disclaimer: string;
+  }> {
+    return request(`/payouts/${payoutId}/explain`, { method: 'POST' });
+  },
+
   async simulateCrisis(campaignId: string, scenario: string = 'flash_flood_wave'): Promise<{
     status: string;
     scenario: string;
@@ -306,7 +318,7 @@ export const api = {
     return res.json();
   },
 
-  // AI Anti-Fraud Radar & Semantic Deduplication
+  // Deterministic text/address similarity review
   async getRequestDuplicates(campaignId: string, requestId: string): Promise<RequestDuplicatesResult> {
     return request(`/campaigns/${campaignId}/requests/${requestId}/duplicates`);
   },

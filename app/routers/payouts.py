@@ -1,3 +1,5 @@
+import json
+import os
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,11 +15,77 @@ from ..payouts import (
     apply_payout_status,
     execute_paypal_payout,
     get_paypal_payout_status,
-    validate_payout_compliance,
+    screen_payout_purpose_keywords,
 )
 from ..schemas import DisbursePayoutIn, PayoutOut, SimulateCrisisIn
 
 router = APIRouter(tags=["PayPal Fast-Grants & Outflow Disbursal"])
+
+
+@router.post("/payouts/{payout_id}/explain")
+async def explain_payout_status(
+    payout_id: str,
+    session: Session = Depends(get_db),
+    current_member: Member = Depends(actor),
+):
+    """Explain synthetic payout state from sanitized ledger/provider facts; never changes funds."""
+    require(current_member)
+    payout = session.get(Payout, payout_id)
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    campaign(session, payout.campaign_id, current_member)
+    need = session.get(Need, payout.need_id)
+    request = session.get(AidRequest, need.request_id) if need else None
+    if not request or not request.is_synthetic:
+        raise HTTPException(status_code=403, detail="AI payout explanations are limited to synthetic demo cases")
+    if os.getenv("ALLOW_SYNTHETIC_AI", "").lower() != "true":
+        raise HTTPException(status_code=403, detail="Synthetic AI demo mode is disabled")
+    api_key = os.getenv("META_MODEL_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Meta API key missing")
+
+    facts = {
+        "provider": "PayPal Sandbox",
+        "status": payout.status,
+        "amount": f"{payout.amount_minor / 100:.2f} {payout.currency}",
+        "provider_batch_received": payout.payout_batch_id != payout.sender_batch_id,
+        "provider_item_received": bool(payout.payout_item_id),
+        "reservation_recorded": bool(session.scalar(select(Ledger.id).where(Ledger.reference == f"paypal:payout:reserve:{payout.id}"))),
+        "spend_recorded": bool(session.scalar(select(Ledger.id).where(Ledger.reference == f"paypal:payout:spend:{payout.id}"))),
+        "reserve_released": bool(session.scalar(select(Ledger.id).where(Ledger.reference == f"paypal:payout:release:{payout.id}"))),
+    }
+    payload = {
+        "model": os.getenv("AI_MODEL", "muse-spark-1.3"),
+        "messages": [
+            {"role": "system", "content": (
+                "Explain a PayPal Sandbox payout state using only the supplied JSON facts. "
+                "Return JSON with short string fields explanation and suggested_next_step. "
+                "Never claim delivery, eligibility, compliance, or fraud. Never propose retry for pending/unknown states. "
+                "This is advisory text only and must not imply that you changed funds or ledger state."
+            )},
+            {"role": "user", "content": json.dumps(facts)},
+        ],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            response = await client.post(
+                "https://api.meta.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            )
+            response.raise_for_status()
+            result = json.loads(response.json()["choices"][0]["message"]["content"])
+        if not isinstance(result.get("explanation"), str) or not isinstance(result.get("suggested_next_step"), str):
+            raise ValueError("Malformed explanation")
+        return {
+            "status": "advisory",
+            "facts": facts,
+            "explanation": result["explanation"][:1000],
+            "suggested_next_step": result["suggested_next_step"][:500],
+            "disclaimer": "AI generated this explanation from sanitized synthetic case facts. It did not alter the payout or ledger.",
+        }
+    except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail="AI payout explanation unavailable or invalid") from exc
 
 
 @router.post("/needs/{need_id}/payout", response_model=PayoutOut)
@@ -48,9 +116,9 @@ async def disburse_payout(
         raise HTTPException(status_code=409, detail="Need must be in 'approved' status prior to disbursement")
 
     # 1. AI & Policy Compliance Validation
-    is_compliant, reason = validate_payout_compliance(body.purpose_note, need)
+    is_compliant, reason = screen_payout_purpose_keywords(body.purpose_note, need)
     if not is_compliant:
-        raise HTTPException(status_code=400, detail=f"Compliance check failed: {reason}")
+        raise HTTPException(status_code=400, detail=f"Basic purpose-text screen flagged the request: {reason}")
 
     # Include other holds so two concurrent payouts cannot over-commit one need.
     entries = session.scalars(select(Ledger).where(Ledger.need_id == need.id)).all()

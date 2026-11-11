@@ -72,8 +72,9 @@ class ReceiptIn(BaseModel):
 class ReceiptScanIn(BaseModel):
     campaign_id: str = Field(description="Target campaign ID")
     need_id: Optional[str] = Field(default=None, description="Associated approved need to cross-validate against")
-    image_base64: Optional[str] = Field(default=None, description="Base64 encoded receipt image or data URL")
+    image_base64: Optional[str] = Field(default=None, max_length=8_000_000, description="Base64 encoded synthetic receipt image or data URL")
     sample_id: Optional[str] = Field(default=None, description="Pre-loaded realistic demo receipt sample ID")
+    synthetic_demo_confirmed: bool = Field(default=False, description="Explicitly confirms an uploaded image contains synthetic, non-personal demo data")
 
 
 class ReceiptAuditItem(BaseModel):
@@ -174,7 +175,7 @@ class PayPalImpactJourneyOut(BaseModel):
     privacy_note: str
 
 
-# Semantic Deduplication & Anti-Fraud Radar Schemas
+# Similarity-based request review schemas (not fraud or eligibility decisions).
 class DuplicateMatchOut(BaseModel):
     matched_request_id: str
     matched_message: str

@@ -1,0 +1,1 @@
+The AI contribution is practical: turn a short request into a structured draft that a coordinator can edit. ReliefRail keeps the boundary clear. The model does not rank people, decide eligibility, detect fraud, or authorize money.

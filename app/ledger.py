@@ -11,6 +11,7 @@ class PoolBalance(TypedDict):
     reserved_minor: int
     spent_minor: int
     available_minor: int
+    deficit_minor: int
 
 
 def calculate_balance(session: Session, campaign_id: str) -> PoolBalance:
@@ -40,6 +41,7 @@ def calculate_balance(session: Session, campaign_id: str) -> PoolBalance:
         "reserved_minor": reserved,
         "spent_minor": spent,
         "available_minor": available,
+        "deficit_minor": max(0, -available),
     }
 
 
