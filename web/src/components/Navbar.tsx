@@ -108,7 +108,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setTempToken(authToken);
                 setShowTokenModal(true);
               }}
-              title="Organizer / Admin Access Token"
+              title="Coordinator sign-in · private token"
+              aria-label="Coordinator sign-in"
               className={`p-2 rounded-xl border transition-all ${
                 authToken
                   ? 'bg-mint-50 border-mint-200 text-mint-700'
@@ -158,10 +159,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div>
                 <h3 className="font-serif text-lg font-bold text-slate-900">
-                  Organizer Access Token
+                  Coordinator sign-in
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Authorizes pool reserves, plan approvals, and receipts
+                  Enter a private coordinator token to access protected operations.
                 </p>
               </div>
             </div>
@@ -174,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="password"
                 value={tempToken}
                 onChange={(e) => setTempToken(e.target.value)}
-                placeholder="Paste token generated at bootstrap or member creation"
+                placeholder="Private coordinator token"
                 className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               />
               <p className="text-[11px] text-slate-400 mt-1">

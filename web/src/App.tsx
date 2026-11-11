@@ -12,8 +12,12 @@ import { api, getAuthToken, setAuthToken } from './api';
 import { BoardData, Campaign, PoolBalance } from './types';
 import { HeartInHandsSvg } from './components/OrganicIllustration';
 import { ArrowRight, Heart } from 'lucide-react';
+import { PublicDemo } from './components/PublicDemo';
 
 export const App: React.FC = () => {
+  const [showPublicDemo, setShowPublicDemo] = useState<boolean>(
+    () => new URLSearchParams(window.location.search).get('demo') === '1',
+  );
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [boardData, setBoardData] = useState<BoardData | null>(null);
@@ -28,6 +32,7 @@ export const App: React.FC = () => {
 
   // Load campaigns only from the authenticated API; never disguise setup failures as demo data.
   useEffect(() => {
+    if (showPublicDemo) return;
     let cancelled = false;
     setCampaigns([]);
     setSelectedCampaignId('');
@@ -49,7 +54,7 @@ export const App: React.FC = () => {
     };
     fetchCampaigns();
     return () => { cancelled = true; };
-  }, [authToken]);
+  }, [authToken, showPublicDemo]);
 
   const refreshBoardAndPool = async () => {
     if (!selectedCampaignId) return;
@@ -69,6 +74,7 @@ export const App: React.FC = () => {
   // server, where the order and authenticated campaign are checked, then notify
   // the original donor tab so its pending-order panel can close truthfully.
   useEffect(() => {
+    if (showPublicDemo) return;
     if (paypalReturnStarted.current) return;
     const url = new URL(window.location.href);
     const returnState = url.searchParams.get('paypal');
@@ -116,13 +122,14 @@ export const App: React.FC = () => {
       setPaypalReturnNotice(message);
       sendToDonorTab('failed', { message });
     });
-  }, []);
+  }, [showPublicDemo]);
 
   useEffect(() => {
+    if (showPublicDemo) return;
     if (selectedCampaignId) {
       refreshBoardAndPool();
     }
-  }, [selectedCampaignId, authToken]);
+  }, [selectedCampaignId, authToken, showPublicDemo]);
 
   const handleSaveToken = (token: string) => {
     setAuthToken(token);
@@ -134,6 +141,15 @@ export const App: React.FC = () => {
     name: '',
     currency: '',
   };
+
+  if (showPublicDemo) {
+    return <PublicDemo onExit={() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('demo');
+      window.history.replaceState({}, '', url);
+      setShowPublicDemo(false);
+    }} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-brand-100">
@@ -177,11 +193,25 @@ export const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
         {!selectedCampaignId ? (
           <section className="my-16 mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-soft">
-            <h1 className="font-serif text-2xl font-bold text-slate-900">Connect ReliefRail to a campaign</h1>
-            <p className="mt-3 text-sm text-slate-600">
-              {campaignLoadError || 'Save an authorized coordinator token using the key control above. Campaign data will appear here after the API verifies it.'}
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-700">Welcome to ReliefRail</p>
+            <h1 className="mt-3 font-serif text-2xl font-bold text-slate-900">Explore the public demo</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Browse a read-only walkthrough built from fictional cases. It needs no account and cannot change records or move money.
             </p>
-            <p className="mt-5 text-xs font-semibold text-brand-700">Use the key icon in the top right to enter your token.</p>
+            <button
+              type="button"
+              onClick={() => setShowPublicDemo(true)}
+              className="mt-6 rounded-xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700"
+            >
+              Enter synthetic demo
+            </button>
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              <p className="text-sm font-semibold text-slate-800">Coordinator access</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Use the key icon above with a private coordinator token. Never share that token on this public page.
+              </p>
+              {campaignLoadError && <p role="status" className="mt-3 text-xs text-amber-800">{campaignLoadError}</p>}
+            </div>
           </section>
         ) : <>
         {currentTab === 'supporter' && (
