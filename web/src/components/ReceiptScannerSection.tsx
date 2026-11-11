@@ -188,14 +188,14 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
             Multimodal Receipt Scanner &amp; Policy Audit
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-3xl leading-relaxed">
-            Volunteers buy emergency groceries and hardware with cash. Our multimodal vision AI extracts vendor details and itemized slips in seconds, runs deterministic policy audits against relief guidelines (blocking alcohol, tobacco &amp; unauthorized goods), and cross-checks expenditure against approved budgets.
+            Volunteers may buy emergency groceries and hardware locally. Receipt images can be extracted by the configured vision provider or a labelled synthetic sample; deterministic rules flag selected prohibited items and compare totals with the linked approved need. A pass is a review aid, not proof of eligibility or delivery.
           </p>
         </div>
 
         {/* 1-Click Judge Demo Scenarios */}
         <div className="pt-2 space-y-2.5">
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-            1-Click Interactive Demo Scenarios for Judges:
+                  Synthetic Receipt Examples:
           </span>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Scenario 1: Clean Essentials */}
@@ -217,7 +217,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 leading-snug">
-                Infant formula, diapers, pedialyte &amp; wipes ($69.78). 100% eligible relief goods.
+                Infant formula, diapers, Pedialyte &amp; wipes ($69.78). Fictional example; rules show no prohibited-item flag.
               </p>
             </button>
 
@@ -439,7 +439,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
                       </span>
                       <h3 className="font-serif text-xl font-bold">
                         {auditResult.verdict === 'passed'
-                          ? 'Audit Passed: 100% Eligible Relief Essentials'
+                          ? 'No configured policy flags found'
                           : auditResult.verdict === 'flagged'
                           ? 'Policy Violation Detected: Prohibited Items Flagged'
                           : 'Audit Warning: Budget or Math Variance Detected'}
@@ -449,7 +449,7 @@ export const ReceiptScannerSection: React.FC<ReceiptScannerSectionProps> = ({
 
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/80 border border-slate-200 text-slate-700">
-                      {Math.round(auditResult.confidence * 100)}% AI Confidence
+                      {auditResult.extraction_source === 'synthetic_sample' ? 'Synthetic sample' : 'Extracted by Meta Model API'}
                     </span>
                   </div>
                 </div>

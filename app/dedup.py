@@ -196,15 +196,12 @@ def detect_duplicates_for_request(
         sim_score, overlap_kw, detected_addr = compute_similarity(target_req.message, cand.message)
 
         if sim_score >= threshold:
-            # Estimate potential savings from matching candidate's approved or draft needs
+            # Only report an amount when a need has actually been recorded. A
+            # category-based placeholder would look like real avoided spend.
             needs = session.scalars(
-                select(Need).where(Need.request_id == cand.id)
+                select(Need).where(Need.request_id == cand.id, Need.status == "approved")
             ).all()
-            if needs:
-                savings_minor = sum(n.amount_minor for n in needs)
-            else:
-                # Default disaster relief estimate if needs haven't been approved yet
-                savings_minor = 18500 if "generator" in overlap_kw else 12500
+            savings_minor = sum(n.amount_minor for n in needs)
 
             confidence: str
             if sim_score >= 0.85:
@@ -219,7 +216,7 @@ def detect_duplicates_for_request(
             reason = (
                 f"{pct}% High Similarity Detected: Matches Request #{cand.id[:8]} "
                 f"('{cand.message[:65]}...'){addr_str}. "
-                f"Suggested Action: [Merge Requests] to prevent ${savings_minor / 100:.2f} duplicate payout."
+                f"Suggested Action: [Review or merge]. Potential duplicate spend is shown only for approved needs."
             )
 
             matches.append(

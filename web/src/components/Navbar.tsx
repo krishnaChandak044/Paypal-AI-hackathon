@@ -48,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ReliefRail
                 </span>
                 <span className="text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 border border-mint-200">
-                  Verified Aid
+                  Aid Coordination
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">

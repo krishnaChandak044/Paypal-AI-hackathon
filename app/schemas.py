@@ -105,7 +105,8 @@ class ReceiptAuditOut(BaseModel):
     items: List[ReceiptAuditItem]
     anomalies: List[AuditAnomaly]
     verdict: Literal["passed", "warning", "flagged"]
-    confidence: float
+    confidence: Optional[float] = None
+    extraction_source: Literal["synthetic_sample", "meta_vision"]
     need_comparison: Optional[Dict[str, Any]] = None
 
 
@@ -129,7 +130,7 @@ class PayoutOut(BaseModel):
     payout_id: str
     need_id: str
     ledger_id: str
-    payout_batch_id: str
+    payout_batch_id: Optional[str]
     payout_item_id: Optional[str]
     recipient_email: str
     recipient_name: str
@@ -147,14 +148,14 @@ class SimulateCrisisIn(BaseModel):
     scenario: Literal["flash_flood_wave", "power_outage_freeze", "urban_wildfire"] = "flash_flood_wave"
 
 
-# Live PayPal Transaction Impact Journey & Zero-PII Storyteller Schemas
+# PayPal order and shared-pool record journey schemas
 class JourneyStep(BaseModel):
     stage: int
     title: str
     subtitle: str
     description: str
-    status: Literal["completed", "allocated", "disbursed", "audited"]
-    timestamp: str
+    status: str
+    timestamp: Optional[str] = None
     reference: str
     badge: str
 
@@ -166,11 +167,11 @@ class PayPalImpactJourneyOut(BaseModel):
     currency: str
     campaign_name: str
     status: str
-    confirmed_at: str
+    confirmed_at: Optional[str] = None
     timeline: List[JourneyStep]
     verified_items_funded: List[str]
     ai_impact_narrative: Dict[str, str]
-    zero_pii_certificate: Dict[str, Any]
+    privacy_note: str
 
 
 # Semantic Deduplication & Anti-Fraud Radar Schemas
@@ -246,17 +247,12 @@ class CommunityResilienceBufferOut(BaseModel):
     resilience_score: int
     resilience_rating: str
     ai_predictive_statement: str
+    estimation_note: str
     tier_breakdown: Dict[str, int]
     recent_guardians: List[Dict[str, Any]]
 
 
-class SimulateGuardianIn(BaseModel):
-    tier_name: Optional[Literal["Community Guardian", "Resilience Sentinel", "Pool Anchor"]] = "Resilience Sentinel"
-    amount_minor: Optional[int] = 2500
-    donor_name: Optional[str] = "Riverbend Valley Neighbor"
-
-
-# Anonymized Geographic Need Cluster Map (Zero-PII Heatmap) Schemas
+# Synthetic geographic scenario-map schemas
 class GeoClusterOut(BaseModel):
     sector_id: str
     name: str
@@ -272,7 +268,6 @@ class GeoClusterOut(BaseModel):
     color_theme: str
     active_items: List[str]
     payouts_disbursed_count: int
-    zero_pii_hash: str
 
 
 class GeoClustersResponseOut(BaseModel):
@@ -283,7 +278,8 @@ class GeoClustersResponseOut(BaseModel):
     total_funded_minor: int
     total_gap_minor: int
     overall_valley_funded_pct: int
-    zero_pii_guarantee: Dict[str, Any]
+    data_source: str
+    privacy_note: str
     clusters: List[GeoClusterOut]
 
 

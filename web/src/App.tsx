@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroDonorSection } from './components/HeroDonorSection';
 import { CoordinationBoard } from './components/CoordinationBoard';
@@ -21,31 +21,35 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('supporter');
   const [authToken, setLocalAuthToken] = useState<string>(getAuthToken());
   const [showJourneyModal, setShowJourneyModal] = useState<boolean>(false);
-  const [journeyOrderId, setJourneyOrderId] = useState<string>('84Y94709MX0315008');
+  const [journeyOrderId, setJourneyOrderId] = useState<string>('');
+  const [campaignLoadError, setCampaignLoadError] = useState<string | null>(null);
+  const [paypalReturnNotice, setPaypalReturnNotice] = useState<string | null>(null);
+  const paypalReturnStarted = useRef(false);
 
-  // Load campaigns on initial mount
+  // Load campaigns only from the authenticated API; never disguise setup failures as demo data.
   useEffect(() => {
+    let cancelled = false;
+    setCampaigns([]);
+    setSelectedCampaignId('');
+    setBoardData(null);
+    setPool(null);
     const fetchCampaigns = async () => {
       try {
         const list = await api.getCampaigns();
+        if (cancelled) return;
         setCampaigns(list);
-        if (list.length > 0 && !selectedCampaignId) {
-          setSelectedCampaignId(list[0].id);
-        }
+        setCampaignLoadError(null);
+        setSelectedCampaignId((current) => list.some((item) => item.id === current) ? current : (list[0]?.id || ''));
       } catch (err) {
-        console.warn('Initial campaign load (using fallback or waiting for token):', err);
-        setCampaigns([
-          {
-            id: 'b253a83d-09ae-4ec7-81f4-055aac27f72a',
-            name: 'Pine Creek & Riverbend Flood Response',
-            currency: 'USD',
-          },
-        ]);
-        setSelectedCampaignId('b253a83d-09ae-4ec7-81f4-055aac27f72a');
+        if (cancelled) return;
+        setCampaigns([]);
+        setSelectedCampaignId('');
+        setCampaignLoadError(err instanceof Error ? err.message : 'Unable to load campaigns.');
       }
     };
     fetchCampaigns();
-  }, []);
+    return () => { cancelled = true; };
+  }, [authToken]);
 
   const refreshBoardAndPool = async () => {
     if (!selectedCampaignId) return;
@@ -61,6 +65,59 @@ export const App: React.FC = () => {
     }
   };
 
+  // PayPal redirects back to this page after buyer approval. Capture on the
+  // server, where the order and authenticated campaign are checked, then notify
+  // the original donor tab so its pending-order panel can close truthfully.
+  useEffect(() => {
+    if (paypalReturnStarted.current) return;
+    const url = new URL(window.location.href);
+    const returnState = url.searchParams.get('paypal');
+    if (!returnState) return;
+
+    paypalReturnStarted.current = true;
+    const orderId = url.searchParams.get('token') || '';
+    for (const key of ['paypal', 'token', 'PayerID', 'paymentId', 'paymentToken']) {
+      url.searchParams.delete(key);
+    }
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+
+    const sendToDonorTab = (status: string, extra: Record<string, string> = {}) => {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          { source: 'reliefrail:paypal', status, orderId, ...extra },
+          window.location.origin,
+        );
+      }
+    };
+
+    if (returnState === 'cancel') {
+      setPaypalReturnNotice('PayPal checkout was cancelled. No contribution was captured.');
+      sendToDonorTab('cancelled');
+      return;
+    }
+    if (returnState !== 'return') return;
+    if (!orderId) {
+      const message = 'PayPal returned without an order reference. Check the order status before retrying.';
+      setPaypalReturnNotice(message);
+      sendToDonorTab('failed', { message });
+      return;
+    }
+
+    setPaypalReturnNotice('PayPal approved the contribution. Confirming the capture…');
+    api.capturePayPalOrder(orderId).then((result) => {
+      const message = 'Payment confirmed by PayPal and credited to the campaign pool.';
+      setPaypalReturnNotice(message);
+      setJourneyOrderId(orderId);
+      sendToDonorTab('confirmed', { captureId: result.capture_id });
+      void refreshBoardAndPool();
+    }).catch((error: unknown) => {
+      const detail = error instanceof Error ? error.message : 'Capture confirmation is pending.';
+      const message = `PayPal returned to ReliefRail, but capture confirmation failed: ${detail}. Use the order status panel to retry safely.`;
+      setPaypalReturnNotice(message);
+      sendToDonorTab('failed', { message });
+    });
+  }, []);
+
   useEffect(() => {
     if (selectedCampaignId) {
       refreshBoardAndPool();
@@ -70,27 +127,26 @@ export const App: React.FC = () => {
   const handleSaveToken = (token: string) => {
     setAuthToken(token);
     setLocalAuthToken(token);
-    refreshBoardAndPool();
   };
 
   const activeCampaign = campaigns.find((c) => c.id === selectedCampaignId) || {
     id: selectedCampaignId,
-    name: 'Pine Creek & Riverbend Flood Response',
-    currency: 'USD',
+    name: '',
+    currency: '',
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-brand-100">
       {/* Top Interactive Crisis Demo Bar for Judges */}
-      <CrisisSimulatorBar
+      {selectedCampaignId && <CrisisSimulatorBar
         campaignId={selectedCampaignId}
         onCrisisInjected={refreshBoardAndPool}
         onNavigateTab={(tab) => setCurrentTab(tab)}
         onOpenJourney={(orderId) => {
-          if (orderId) setJourneyOrderId(orderId);
+          setJourneyOrderId(orderId || '');
           setShowJourneyModal(true);
         }}
-      />
+      />}
 
       {/* Top Banner & Header */}
       <Navbar
@@ -103,8 +159,31 @@ export const App: React.FC = () => {
         onSaveToken={handleSaveToken}
       />
 
+      {paypalReturnNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`mx-auto mt-4 max-w-7xl rounded-2xl border px-4 py-3 text-sm ${
+            paypalReturnNotice.includes('failed') || paypalReturnNotice.includes('cancelled')
+              ? 'border-amber-200 bg-amber-50 text-amber-900'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          }`}
+        >
+          {paypalReturnNotice}
+        </div>
+      )}
+
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
+        {!selectedCampaignId ? (
+          <section className="my-16 mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-soft">
+            <h1 className="font-serif text-2xl font-bold text-slate-900">Connect ReliefRail to a campaign</h1>
+            <p className="mt-3 text-sm text-slate-600">
+              {campaignLoadError || 'Save an authorized coordinator token using the key control above. Campaign data will appear here after the API verifies it.'}
+            </p>
+            <p className="mt-5 text-xs font-semibold text-brand-700">Use the key icon in the top right to enter your token.</p>
+          </section>
+        ) : <>
         {currentTab === 'supporter' && (
           <div className="space-y-16">
             <HeroDonorSection
@@ -114,12 +193,12 @@ export const App: React.FC = () => {
               pool={pool || (boardData ? boardData.pool : null)}
               onRefreshPool={refreshBoardAndPool}
               onOpenJourney={(orderId) => {
-                if (orderId) setJourneyOrderId(orderId);
+                setJourneyOrderId(orderId || '');
                 setShowJourneyModal(true);
               }}
             />
 
-            {/* Anonymized Geographic Need Cluster Map (Zero-PII Heatmap) */}
+            {/* Synthetic geographic scenario map */}
             <section className="space-y-4">
               <GeographicClusterMap campaignId={selectedCampaignId} />
             </section>
@@ -184,6 +263,7 @@ export const App: React.FC = () => {
         {currentTab === 'recipient' && (
           <RecipientPortal campaignId={selectedCampaignId} />
         )}
+        </>}
       </main>
 
       {/* Clean Pastel Minimalist Footer */}
@@ -252,7 +332,7 @@ export const App: React.FC = () => {
         </div>
       </footer>
 
-      {/* Live PayPal Transaction Impact Journey & Zero-PII Storyteller Modal */}
+      {/* PayPal order and pool journey */}
       {showJourneyModal && (
         <PayPalImpactJourneyModal
           initialOrderId={journeyOrderId}

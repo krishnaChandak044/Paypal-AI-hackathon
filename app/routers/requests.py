@@ -59,7 +59,7 @@ def list_requests(
     ).all()
 
     return [
-        {"id": r.id, "message": r.message, "status": r.status, "created_at": r.created_at}
+        {"id": r.id, "message": r.message, "status": r.status, "created_at": r.created_at, "is_synthetic": r.is_synthetic}
         for r in requests
     ]
 
@@ -152,16 +152,18 @@ def simulate_duplicate_request(
     session: Session = Depends(get_db),
     current_member: Member = Depends(actor),
 ):
-    """Simulates an incoming duplicate SMS/phone intake request to test the Anti-Fraud Radar in real time."""
+    """Adds or reuses a fictional request pair to demonstrate similarity review."""
     require(current_member)
     c = campaign(session, campaign_id, current_member)
 
-    # Check if primary 104 Riverside Dr request exists; if not, create it
+    # Use a wholly fictional synthetic pair; neither request is pre-approved and
+    # no estimated duplicate exposure is recorded as a real dollar saving.
     existing_primary = session.scalars(
         select(AidRequest).where(
             AidRequest.campaign_id == campaign_id,
-            AidRequest.message.like("%104 Riverside%"),
+            AidRequest.message == "Synthetic case: A household at the fictional address 104 Riverside Drive reports flood damage and asks for a portable generator for medical equipment.",
             AidRequest.status != "merged",
+            AidRequest.is_synthetic.is_(True),
         )
     ).first()
 
@@ -169,36 +171,35 @@ def simulate_duplicate_request(
         primary_req = AidRequest(
             id=uid(),
             campaign_id=campaign_id,
-            message="104 Riverside Dr - Power cut off due to river overflow, ground floor flooded. Need portable generator to power medical CPAP and heater.",
-            status="approved",
+            message="Synthetic case: A household at the fictional address 104 Riverside Drive reports flood damage and asks for a portable generator for medical equipment.",
+            status="received",
+            is_synthetic=True,
             created_at=now(),
         )
         session.add(primary_req)
         session.flush()
 
-        primary_need = Need(
-            id=uid(),
-            request_id=primary_req.id,
-            description="Emergency portable generator and fuel for 104 Riverside Dr",
-            amount_minor=18500,
-            status="approved",
-        )
-        session.add(primary_need)
-        session.flush()
         primary_id = primary_req.id
     else:
         primary_id = existing_primary.id
 
-    # Create incoming duplicate request (e.g. submitted via SMS by frantic daughter)
-    dup_req = AidRequest(
-        id=uid(),
-        campaign_id=campaign_id,
-        message="URGENT SMS: Panicked daughter here. Parents trapped at 104 Riverside Drive with no power and water rising. Need generator for medical CPAP machine ASAP!",
-        status="received",
-        created_at=now(),
+    duplicate_message = "Synthetic duplicate: A relative reports a household at fictional 104 Riverside Drive has flood damage and asks for a generator for medical equipment."
+    dup_req = session.scalar(
+        select(AidRequest).where(
+            AidRequest.campaign_id == campaign_id,
+            AidRequest.message == duplicate_message,
+            AidRequest.is_synthetic.is_(True),
+            AidRequest.status != "merged",
+        ).limit(1)
     )
-    session.add(dup_req)
-    session.flush()
+    reused = dup_req is not None
+    if not dup_req:
+        dup_req = AidRequest(
+            id=uid(), campaign_id=campaign_id, message=duplicate_message,
+            status="received", is_synthetic=True, created_at=now(),
+        )
+        session.add(dup_req)
+        session.flush()
 
     log(session, current_member, "simulation.duplicate_injected", dup_req.id)
     session.commit()
@@ -208,7 +209,8 @@ def simulate_duplicate_request(
         "primary_request_id": primary_id,
         "duplicate_request_id": dup_req.id,
         "duplicate_message": dup_req.message,
-        "potential_savings_minor": 18500,
+        "potential_savings_minor": 0,
+        "reused": reused,
     }
 
 
@@ -341,6 +343,12 @@ async def ai_draft(
         raise HTTPException(status_code=404, detail="Request not found")
 
     campaign(session, req.campaign_id, current_member)
+
+    if not req.is_synthetic:
+        raise HTTPException(
+            status_code=403,
+            detail="External AI drafting is limited to explicitly synthetic demo requests.",
+        )
 
     api_key = os.getenv("META_MODEL_API_KEY")
     if not api_key:

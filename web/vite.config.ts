@@ -14,6 +14,7 @@ export default defineConfig({
       '/campaigns': 'http://127.0.0.1:8000',
       '/requests': 'http://127.0.0.1:8000',
       '/needs': 'http://127.0.0.1:8000',
+      '/payouts': 'http://127.0.0.1:8000',
       '/paypal': 'http://127.0.0.1:8000',
       '/recipient': 'http://127.0.0.1:8000',
       '/spending': 'http://127.0.0.1:8000',

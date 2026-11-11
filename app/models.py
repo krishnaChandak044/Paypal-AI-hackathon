@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base, now, uid
@@ -40,6 +40,7 @@ class AidRequest(Base):
     campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String, default="received", nullable=False)
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
 
 
@@ -179,6 +180,8 @@ class Payout(Base):
     need_id: Mapped[str] = mapped_column(ForeignKey("needs.id"), nullable=False)
     ledger_id: Mapped[str] = mapped_column(ForeignKey("ledger.id"), nullable=False)
     payout_batch_id: Mapped[str] = mapped_column(String, nullable=False)
+    sender_batch_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
+    sender_item_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     payout_item_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     recipient_email: Mapped[str] = mapped_column(String, nullable=False)
     recipient_name: Mapped[str] = mapped_column(String, default="Field Coordinator", nullable=False)
@@ -186,7 +189,8 @@ class Payout(Base):
     amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
     fee_minor: Mapped[int] = mapped_column(Integer, default=25, nullable=False)
     currency: Mapped[str] = mapped_column(String, default="USD", nullable=False)
-    status: Mapped[str] = mapped_column(String, default="SUCCESS", nullable=False)
+    status: Mapped[str] = mapped_column(String, default="PENDING", nullable=False)
+    mode: Mapped[str] = mapped_column(String, default="paypal_sandbox", nullable=False)
     purpose_note: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
 
@@ -214,7 +218,7 @@ class Subscription(Base):
     tier_name: Mapped[str] = mapped_column(String, default="Community Guardian", nullable=False)
     amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String, default="USD", nullable=False)
-    status: Mapped[str] = mapped_column(String, default="ACTIVE", nullable=False)
+    status: Mapped[str] = mapped_column(String, default="APPROVAL_PENDING", nullable=False)
     interval_unit: Mapped[str] = mapped_column(String, default="MONTH", nullable=False)
     created_at: Mapped[str] = mapped_column(String, default=now, nullable=False)
     last_payment_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)

@@ -34,6 +34,7 @@ export interface AidRequest {
   message: string;
   status: 'received' | 'needs_clarification' | 'approved' | 'partially_fulfilled' | 'fulfilled' | 'on_hold' | 'declined' | 'withdrawn' | 'merged';
   created_at?: string;
+  is_synthetic?: boolean;
 }
 
 export interface StructuredNeed {
@@ -106,7 +107,8 @@ export interface ReceiptAuditResult {
   items: ReceiptAuditItem[];
   anomalies: AuditAnomaly[];
   verdict: 'passed' | 'warning' | 'flagged';
-  confidence: number;
+  confidence: number | null;
+  extraction_source: 'synthetic_sample' | 'meta_vision';
   need_comparison?: {
     need_id: string;
     need_description: string;
@@ -141,7 +143,7 @@ export interface PayoutItem {
   payout_id: string;
   need_id: string;
   ledger_id: string;
-  payout_batch_id: string;
+  payout_batch_id: string | null;
   payout_item_id: string | null;
   recipient_email: string;
   recipient_name: string;
@@ -160,8 +162,8 @@ export interface JourneyStep {
   title: string;
   subtitle: string;
   description: string;
-  status: 'completed' | 'allocated' | 'disbursed' | 'audited';
-  timestamp: string;
+  status: string;
+  timestamp?: string | null;
   reference: string;
   badge: string;
 }
@@ -173,7 +175,7 @@ export interface PayPalImpactJourneyResult {
   currency: string;
   campaign_name: string;
   status: string;
-  confirmed_at: string;
+  confirmed_at?: string | null;
   timeline: JourneyStep[];
   verified_items_funded: string[];
   ai_impact_narrative: {
@@ -181,13 +183,7 @@ export interface PayPalImpactJourneyResult {
     social_card: string;
     audit_summary: string;
   };
-  zero_pii_certificate: {
-    zero_pii_verified: boolean;
-    classification: string;
-    redactions_enforced: string[];
-    compliance_standard: string;
-    audit_hash: string;
-  };
+  privacy_note: string;
 }
 
 export interface DuplicateMatch {
@@ -251,6 +247,7 @@ export interface CommunityResilienceBuffer {
   resilience_score: number;
   resilience_rating: string;
   ai_predictive_statement: string;
+  estimation_note: string;
   tier_breakdown: {
     community_guardian: number;
     resilience_sentinel: number;
@@ -271,7 +268,7 @@ export interface SubscriptionResult {
   message: string;
 }
 
-// Anonymized Geographic Need Cluster Map (Zero-PII Heatmap) Types
+// Synthetic geographic scenario-map types
 export interface GeoCluster {
   sector_id: string;
   name: string;
@@ -286,12 +283,11 @@ export interface GeoCluster {
   funded_minor: number;
   unmet_minor: number;
   funding_percentage: number;
-  status: 'fully_funded' | 'active_response' | 'critical_gap';
+  status: 'illustrative_full' | 'illustrative_partial';
   badge_label: string;
   color_theme: 'mint' | 'sky' | 'amber';
   active_items: string[];
   payouts_disbursed_count: number;
-  zero_pii_hash: string;
 }
 
 export interface GeoClustersResponse {
@@ -302,12 +298,8 @@ export interface GeoClustersResponse {
   total_funded_minor: number;
   total_gap_minor: number;
   overall_valley_funded_pct: number;
-  zero_pii_guarantee: {
-    privacy_model: string;
-    geo_precision: string;
-    pii_redaction_certified: boolean;
-    compliance: string;
-  };
+  data_source: 'synthetic_demo' | string;
+  privacy_note: string;
   clusters: GeoCluster[];
 }
 

@@ -56,7 +56,7 @@ export const GeographicClusterMap: React.FC<GeographicClusterMapProps> = ({
           <MapPin className="w-5 h-5" />
         </div>
         <p className="text-xs font-semibold text-slate-500">
-          Loading Riverbend Valley Zero-PII Geographic Need Clusters...
+          Loading illustrative demo map...
         </p>
       </div>
     );
@@ -64,29 +64,28 @@ export const GeographicClusterMap: React.FC<GeographicClusterMapProps> = ({
 
   return (
     <div className="bg-white rounded-4xl border border-slate-200/90 shadow-soft overflow-hidden space-y-6 p-6 sm:p-8">
-      {/* Header with Zero-PII Guarantee Badge */}
+      {/* Synthetic example notice */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
           <div className="flex items-center gap-2 text-brand-600 font-semibold text-xs tracking-wider uppercase">
             <Layers className="w-4 h-4 text-brand-500" />
-            <span>Crisis Spatial Intelligence</span>
+            <span>Spatial Scenario Explorer</span>
           </div>
           <h3 className="font-serif text-2xl font-bold text-slate-900 mt-0.5">
-            {data.region_name} Need Heatmap
+            {data.region_name} Scenario Map
           </h3>
           <p className="text-xs text-slate-500 max-w-xl mt-0.5">
-            Live geographic breakdown of funded essentials vs. active relief gaps.
-            Exact coordinates are clustered into k-anonymity sectors to guarantee zero PII exposure.
+            Illustrative example of how a campaign could summarize needs. This view is not connected to live recipient locations or payment records.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           <div className="px-3.5 py-1.5 rounded-2xl bg-mint-50 border border-mint-200 text-mint-800 flex items-center gap-2 text-xs font-bold shadow-sm">
             <Lock className="w-3.5 h-3.5 text-mint-600" />
-            <span>Zero-PII Certified</span>
+            <span>Fictional demo data</span>
           </div>
           <div className="text-right">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Valley Funded</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Illustrative coverage</span>
             <span className="text-base font-bold text-brand-600">
               {data.overall_valley_funded_pct}%
             </span>
@@ -101,7 +100,7 @@ export const GeographicClusterMap: React.FC<GeographicClusterMapProps> = ({
           {/* Map Title Overlay */}
           <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-sm text-[11px] font-semibold text-slate-700 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
-            <span>Interactive Valley Sectors (Click to inspect)</span>
+            <span>Illustrative zones (Click to inspect)</span>
           </div>
 
           <div className="relative w-full aspect-[4/3] max-h-[460px]">
@@ -272,18 +271,18 @@ export const GeographicClusterMap: React.FC<GeographicClusterMapProps> = ({
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-mint-500" />
-                <span>100% Deployed</span>
+                <span>Illustrative full coverage</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-brand-500" />
-                <span>Active Aid Response</span>
+                <span>Illustrative partial coverage</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span>Funding Gap</span>
+                <span>Illustrative gap</span>
               </span>
             </div>
-            <span className="text-[10px] text-slate-400">Differential Privacy &bull; k &ge; 25</span>
+            <span className="text-[10px] text-slate-400">Synthetic values • not a live report</span>
           </div>
         </div>
 
@@ -344,10 +343,10 @@ export const GeographicClusterMap: React.FC<GeographicClusterMapProps> = ({
                 )}
               </div>
 
-              {/* Active Verified Supplies */}
+              {/* Example supplies */}
               <div className="space-y-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Items Verified &amp; Deployed in Sector
+                  Example items (not verified or deployed)
                 </span>
                 <div className="space-y-1.5">
                   {activeSector.active_items.map((item, idx) => (
@@ -360,26 +359,25 @@ export const GeographicClusterMap: React.FC<GeographicClusterMapProps> = ({
                         <span className="truncate max-w-[210px]">{item}</span>
                       </div>
                       <span className="text-[10px] font-bold text-brand-600 bg-sky-50 px-2 py-0.5 rounded-md">
-                        Active
+                        Example
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Zero-PII Guarantee Card */}
+              {/* Data limitation */}
               <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 text-[11px] text-slate-500 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-700 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-brand-500" />
-                    <span>Differential Privacy Hash</span>
+                    <span>Data and privacy note</span>
                   </span>
                   <span className="font-mono text-[10px] text-slate-400">
-                    {activeSector.zero_pii_hash}
                   </span>
                 </div>
                 <p className="text-[10px] leading-relaxed text-slate-400">
-                  Beneficiary addresses are stripped before map ingestion. Relief is grouped by macro sector to ensure victim privacy.
+                  {data.privacy_note}
                 </p>
               </div>
             </div>

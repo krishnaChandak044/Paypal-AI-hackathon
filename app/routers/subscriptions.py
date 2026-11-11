@@ -1,107 +1,98 @@
-"""PayPal Subscriptions API v1 & Community Relief Guardian Recurring Anchor Pools."""
+"""PayPal subscription setup; balances change only from verified sale webhooks."""
 import os
-import uuid
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import actor, campaign, log, require
 from ..database import get_db, now, uid
-from ..models import Campaign, Member, Subscription
+from ..models import Member, Subscription
 from ..payments import PAYPAL_BASE_URL, get_access_token
 from ..predictive_buffer import calculate_community_resilience_buffer
-from ..schemas import (
-    CommunityResilienceBufferOut,
-    CreateSubscriptionIn,
-    SimulateGuardianIn,
-    SubscriptionOut,
-)
+from ..schemas import CommunityResilienceBufferOut, CreateSubscriptionIn, SubscriptionOut
 
 router = APIRouter(tags=["PayPal Subscriptions & Resilience Buffer"])
 
+PLAN_ENV = {
+    "Community Guardian": "PAYPAL_PLAN_COMMUNITY_GUARDIAN",
+    "Resilience Sentinel": "PAYPAL_PLAN_RESILIENCE_SENTINEL",
+    "Pool Anchor": "PAYPAL_PLAN_POOL_ANCHOR",
+}
+TIER_AMOUNTS = {"Community Guardian": 1000, "Resilience Sentinel": 2500, "Pool Anchor": 5000}
 
-@router.post("/campaigns/{campaign_id}/subscriptions/create", response_model=SubscriptionOut)
+
+@router.post("/campaigns/{campaign_id}/subscriptions/create", response_model=SubscriptionOut, status_code=201)
 async def create_community_subscription(
     campaign_id: str,
     body: CreateSubscriptionIn,
     session: Session = Depends(get_db),
     current_member: Member = Depends(actor),
 ):
-    """Creates a recurring monthly PayPal Subscription agreement under Subscriptions API v1."""
     c = campaign(session, campaign_id, current_member)
+    require(current_member, ("admin", "organizer", "finance"))
 
-    # Generate or map to PayPal Plan ID
-    plan_id = f"P-RELIEF-{body.tier_name.upper().replace(' ', '')}"
-    custom_sub_id = f"I-GUARD{uuid.uuid4().hex[:8].upper()}"
-    approval_url = f"https://www.sandbox.paypal.com/checkoutnow?token={custom_sub_id}"
+    expected_amount = TIER_AMOUNTS.get(body.tier_name)
+    plan_id = os.getenv(PLAN_ENV.get(body.tier_name, "")) if body.tier_name in PLAN_ENV else None
+    if expected_amount is None or body.amount_minor != expected_amount:
+        raise HTTPException(status_code=422, detail="Choose a supported fixed monthly tier")
+    if not plan_id:
+        raise HTTPException(status_code=503, detail="A matching active PayPal monthly plan is not configured")
+    if os.getenv("PAYPAL_ENVIRONMENT", "sandbox") != "sandbox":
+        raise HTTPException(status_code=503, detail="Only PayPal sandbox subscriptions are enabled")
 
-    # Attempt live PayPal Subscriptions v1 API if sandbox credentials available
-    client_id = os.getenv("PAYPAL_CLIENT_ID")
-    client_secret = os.getenv("PAYPAL_CLIENT_SECRET")
-    environment = os.getenv("PAYPAL_ENVIRONMENT", "sandbox")
+    async with httpx.AsyncClient(timeout=20) as client:
+        token = await get_access_token(client)
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        plan_res = await client.get(f"{PAYPAL_BASE_URL}/v1/billing/plans/{plan_id}", headers=headers)
+        if not plan_res.is_success:
+            raise HTTPException(status_code=503, detail="Configured PayPal plan could not be verified")
+        plan = plan_res.json()
+        regular = [x for x in plan.get("billing_cycles", []) if x.get("tenure_type") == "REGULAR"]
+        if (
+            plan.get("status") != "ACTIVE"
+            or len(regular) != 1
+            or (regular[0].get("frequency") or {}).get("interval_unit") != "MONTH"
+            or (regular[0].get("frequency") or {}).get("interval_count") != 1
+            or (regular[0].get("pricing_scheme") or {}).get("fixed_price", {}).get("currency_code") != c.currency
+            or (regular[0].get("pricing_scheme") or {}).get("fixed_price", {}).get("value") != f"{expected_amount / 100:.2f}"
+        ):
+            raise HTTPException(status_code=503, detail="PayPal plan must be active and match the selected monthly tier and campaign currency")
 
-    if client_id and client_secret and environment == "sandbox":
-        try:
-            async with httpx.AsyncClient(timeout=20) as client:
-                token = await get_access_token(client)
-                headers = {
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                }
-                sub_payload = {
-                    "plan_id": plan_id,
-                    "subscriber": {
-                        "name": {"given_name": body.subscriber_name.split()[0], "surname": "Guardian"},
-                        "email_address": body.subscriber_email,
-                    },
-                    "custom_id": campaign_id,
-                }
-                res = await client.post(
-                    f"{PAYPAL_BASE_URL}/v1/billing/subscriptions",
-                    headers=headers,
-                    json=sub_payload,
-                )
-                if res.status_code == 201:
-                    data = res.json()
-                    custom_sub_id = data.get("id", custom_sub_id)
-                    for link in data.get("links", []):
-                        if link.get("rel") == "approve":
-                            approval_url = link.get("href")
-        except Exception:
-            # Graceful sandbox fallback to verified prototype subscription
-            pass
+        names = body.subscriber_name.strip().split(maxsplit=1)
+        payload = {
+            "plan_id": plan_id,
+            "subscriber": {
+                "name": {"given_name": names[0], "surname": names[1] if len(names) > 1 else names[0]},
+                "email_address": body.subscriber_email,
+            },
+            "custom_id": campaign_id,
+            "application_context": {"brand_name": "ReliefRail", "user_action": "SUBSCRIBE_NOW"},
+        }
+        response = await client.post(f"{PAYPAL_BASE_URL}/v1/billing/subscriptions", headers=headers, json=payload)
+        if response.status_code != 201:
+            raise HTTPException(status_code=502, detail="PayPal could not create the subscription approval")
+        data = response.json()
+        subscription_id = data.get("id")
+        approval_url = next((x.get("href") for x in data.get("links", []) if x.get("rel") == "approve"), None)
+        if not subscription_id or not approval_url:
+            raise HTTPException(status_code=502, detail="PayPal response did not include a subscription ID and approval link")
 
-    # Record Subscription in ledger database
     sub = Subscription(
-        id=uid(),
-        campaign_id=campaign_id,
-        subscription_id=custom_sub_id,
-        plan_id=plan_id,
-        subscriber_email=body.subscriber_email,
-        subscriber_name=body.subscriber_name,
-        tier_name=body.tier_name,
-        amount_minor=body.amount_minor,
-        currency=c.currency,
-        status="ACTIVE",
-        interval_unit="MONTH",
-        created_at=now(),
-        last_payment_at=now(),
+        id=uid(), campaign_id=campaign_id, subscription_id=subscription_id, plan_id=plan_id,
+        subscriber_email=body.subscriber_email, subscriber_name=body.subscriber_name,
+        tier_name=body.tier_name, amount_minor=expected_amount, currency=c.currency,
+        status="APPROVAL_PENDING", interval_unit="MONTH", created_at=now(),
     )
     session.add(sub)
-    session.flush()
-
-    log(session, current_member, f"subscription.created:{body.tier_name}", sub.id)
+    log(session, current_member, "subscription.approval_created", sub.id)
     session.commit()
-
     return SubscriptionOut(
-        subscription_id=sub.subscription_id,
-        plan_id=sub.plan_id,
-        status=sub.status,
-        tier_name=sub.tier_name,
-        amount_minor=sub.amount_minor,
-        currency=sub.currency,
+        subscription_id=subscription_id, plan_id=plan_id, status=sub.status,
+        tier_name=sub.tier_name, amount_minor=sub.amount_minor, currency=c.currency,
         approval_url=approval_url,
-        message=f"Subscribed to {sub.tier_name} (${body.amount_minor / 100:.2f}/mo). Community Resilience Buffer strengthened!",
+        message="PayPal created the subscription. It is not active or counted until the buyer approves and PayPal confirms activation.",
     )
 
 
@@ -111,54 +102,6 @@ def get_resilience_buffer(
     session: Session = Depends(get_db),
     current_member: Member = Depends(actor),
 ):
-    """Calculates live Predictive Pool Buffer AI metrics and Community Resilience runway."""
     require(current_member)
     campaign(session, campaign_id, current_member)
     return calculate_community_resilience_buffer(session, campaign_id)
-
-
-@router.post("/campaigns/{campaign_id}/subscriptions/simulate-guardian")
-def simulate_recurring_guardian(
-    campaign_id: str,
-    body: SimulateGuardianIn,
-    session: Session = Depends(get_db),
-    current_member: Member = Depends(actor),
-):
-    """Simulates an immediate PayPal recurring guardian joining the pool for live demo evaluation."""
-    require(current_member)
-    c = campaign(session, campaign_id, current_member)
-
-    tier = body.tier_name or "Resilience Sentinel"
-    amt = body.amount_minor or 2500
-    donor_name = body.donor_name or "Riverbend Valley Neighbor"
-    sub_id = f"I-SIM{uuid.uuid4().hex[:6].upper()}"
-
-    sub = Subscription(
-        id=uid(),
-        campaign_id=campaign_id,
-        subscription_id=sub_id,
-        plan_id=f"P-RELIEF-{tier.upper().replace(' ', '')}",
-        subscriber_email=f"donor-{sub_id.lower()}@riverbend.net",
-        subscriber_name=donor_name,
-        tier_name=tier,
-        amount_minor=amt,
-        currency=c.currency,
-        status="ACTIVE",
-        interval_unit="MONTH",
-        created_at=now(),
-        last_payment_at=now(),
-    )
-    session.add(sub)
-    session.flush()
-
-    log(session, current_member, f"simulation.guardian_added:{tier}", sub.id)
-    session.commit()
-
-    buffer_metrics = calculate_community_resilience_buffer(session, campaign_id)
-    return {
-        "status": "guardian_added",
-        "subscription_id": sub.subscription_id,
-        "tier": tier,
-        "amount_minor": amt,
-        "buffer": buffer_metrics,
-    }

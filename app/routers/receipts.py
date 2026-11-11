@@ -67,7 +67,7 @@ async def scan_and_audit_receipt(
         items_json=json.dumps([item.model_dump() for item in items_out]),
         anomalies_json=json.dumps([a.model_dump() for a in anomalies]),
         verdict=verdict,
-        confidence=0.96,
+        confidence=0.0,
     )
     session.add(audit_record)
     session.flush()
@@ -99,7 +99,8 @@ async def scan_and_audit_receipt(
         items=items_out,
         anomalies=anomalies,
         verdict=verdict,
-        confidence=audit_record.confidence,
+        confidence=None,
+        extraction_source=raw_receipt.get("_extraction_source", "synthetic_sample"),
         need_comparison=need_comparison,
     )
 

@@ -1,7 +1,6 @@
-import hashlib
-import json
 import os
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -13,12 +12,10 @@ from ..database import engine, get_db, now, uid
 from ..models import (
     AidRequest,
     Campaign,
-    Ledger,
     Member,
-    Need,
+    Ledger,
     Payment,
-    Payout,
-    ReceiptAudit,
+    Subscription,
     WebhookEvent,
 )
 from ..payments import (
@@ -27,9 +24,24 @@ from ..payments import (
     paypal_request,
 )
 from ..schemas import JourneyStep, OrderIn, PayPalImpactJourneyOut
-from ..storyteller import generate_zero_pii_story
 
 router = APIRouter(tags=["PayPal Payments & Webhooks"])
+
+
+def paypal_checkout_context() -> Dict[str, str]:
+    """Builds a local/deployed return path for the non-JavaScript PayPal flow."""
+    app_url = os.getenv("RELIEFRAIL_APP_URL", "http://127.0.0.1:3000").rstrip("/")
+    parsed = urlparse(app_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=500, detail="RELIEFRAIL_APP_URL must be an absolute HTTP(S) URL")
+    if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        raise HTTPException(status_code=500, detail="RELIEFRAIL_APP_URL must use HTTPS outside local development")
+    return {
+        "return_url": f"{app_url}/?paypal=return",
+        "cancel_url": f"{app_url}/?paypal=cancel",
+        "user_action": "PAY_NOW",
+        "shipping_preference": "NO_SHIPPING",
+    }
 
 
 @router.post("/campaigns/{campaign_id}/paypal/orders")
@@ -47,6 +59,11 @@ async def create_paypal_order(
     request_id = uid()
     payload = {
         "intent": "CAPTURE",
+        "payment_source": {
+            "paypal": {
+                "experience_context": paypal_checkout_context(),
+            }
+        },
         "purchase_units": [
             {
                 "reference_id": campaign_id,
@@ -233,6 +250,61 @@ async def paypal_webhook_handler(
                     )
                 )
 
+    elif event_type in {
+        "BILLING.SUBSCRIPTION.ACTIVATED",
+        "BILLING.SUBSCRIPTION.CANCELLED",
+        "BILLING.SUBSCRIPTION.SUSPENDED",
+        "BILLING.SUBSCRIPTION.EXPIRED",
+    }:
+        resource = event_body.get("resource") or {}
+        subscription = session.scalar(
+            select(Subscription).where(Subscription.subscription_id == resource.get("id"))
+        )
+        if subscription:
+            subscription.status = {
+                "BILLING.SUBSCRIPTION.ACTIVATED": "ACTIVE",
+                "BILLING.SUBSCRIPTION.CANCELLED": "CANCELLED",
+                "BILLING.SUBSCRIPTION.SUSPENDED": "SUSPENDED",
+                "BILLING.SUBSCRIPTION.EXPIRED": "EXPIRED",
+            }[event_type]
+
+    elif event_type in {"PAYMENT.SALE.COMPLETED", "PAYMENT.SALE.REFUNDED", "PAYMENT.SALE.REVERSED"}:
+        sale = event_body.get("resource") or {}
+        billing_id = sale.get("billing_agreement_id")
+        subscription = session.scalar(
+            select(Subscription).where(Subscription.subscription_id == billing_id)
+        ) if billing_id else None
+        sale_id = sale.get("id")
+        amount = sale.get("amount") or {}
+        currency = amount.get("currency") or amount.get("currency_code")
+        value = amount.get("value") or amount.get("total")
+        if subscription and sale_id:
+            expected = amount_string(subscription.amount_minor)
+            if currency != subscription.currency or value != expected:
+                raise HTTPException(status_code=409, detail="Subscription sale amount or currency mismatch")
+            if event_type == "PAYMENT.SALE.COMPLETED":
+                if subscription.status not in ("ACTIVE", "APPROVAL_PENDING", "LEGACY_UNVERIFIED"):
+                    raise HTTPException(status_code=409, detail="Sale received for an inactive subscription")
+                subscription.status = "ACTIVE"
+                subscription.last_payment_at = sale.get("update_time") or sale.get("create_time") or now()
+                reference = f"paypal:subscription-sale:{sale_id}"
+                if not session.scalar(select(Ledger.id).where(Ledger.reference == reference)):
+                    session.add(Ledger(
+                        campaign_id=subscription.campaign_id,
+                        kind="contribution",
+                        amount_minor=subscription.amount_minor,
+                        reference=reference,
+                    ))
+            else:
+                reference = f"paypal:subscription-refund:{sale_id}"
+                if not session.scalar(select(Ledger.id).where(Ledger.reference == reference)):
+                    session.add(Ledger(
+                        campaign_id=subscription.campaign_id,
+                        kind="refund",
+                        amount_minor=subscription.amount_minor,
+                        reference=reference,
+                    ))
+
     session.add(WebhookEvent(id=event_id, event_type=event_type))
     session.commit()
 
@@ -270,173 +342,82 @@ async def get_paypal_order_journey(
     order_id: str,
     session: Session = Depends(get_db),
 ):
-    """Public donor-facing transparency endpoint: traces an individual PayPal Order ID through the relief ledger.
-
-    Returns the verified four-stage journey (Deposit -> Allocation -> Payout -> Receipt Audit) and a Zero-PII AI impact narrative.
-    """
+    """Return only facts tied to this exact order; pooled contributions are not earmarked."""
     clean_id = order_id.strip()
-
-    # Look up payment by order_id or capture_id
+    if not clean_id or len(clean_id) > 128:
+        raise HTTPException(status_code=404, detail="Payment not found")
     payment = session.scalar(
         select(Payment).where((Payment.order_id == clean_id) | (Payment.capture_id == clean_id))
     )
-
     if not payment:
-        # Fallback to the most recent payment or synthesize a demo payment for live judging testing
-        payment = session.scalar(select(Payment).order_by(Payment.id.desc()).limit(1))
-        if not payment:
-            c = session.scalar(select(Campaign).limit(1))
-            if not c:
-                raise HTTPException(status_code=404, detail="No relief campaign active")
-            payment = Payment(
-                campaign_id=c.id,
-                order_id=clean_id,
-                amount_minor=2500,
-                currency=c.currency,
-                status="confirmed",
-                capture_id=f"CAP-{clean_id[:12].upper()}",
-            )
-            session.add(payment)
-            session.flush()
-
+        raise HTTPException(status_code=404, detail="Payment not found")
     c = session.get(Campaign, payment.campaign_id)
-    camp_name = c.name if c else "Pine Creek & Riverbend Community Emergency Pool"
-
-    # Stage 1: Inflow & Verified PayPal Capture
-    step1 = JourneyStep(
+    if not c:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    capture_entry = session.scalar(
+        select(Ledger).where(Ledger.reference == f"paypal:capture:{payment.capture_id}")
+    ) if payment.capture_id else None
+    status = payment.status
+    if status not in {"pending", "confirmed", "refunded", "failed"}:
+        status = "pending"
+    contribution_step = JourneyStep(
         stage=1,
-        title="PayPal Orders v2 & Capture",
-        subtitle="Donor Emergency Contribution Confirmed",
-        description=f"${(payment.amount_minor / 100):.2f} {payment.currency} deposited into community emergency pool with 100% direct relief attribution.",
-        status="completed",
-        timestamp=now()[:10],
+        title="PayPal contribution",
+        subtitle="Campaign emergency pool",
+        description=(
+            f"${payment.amount_minor / 100:.2f} {payment.currency} was confirmed into the shared campaign pool. "
+            "This contribution is not individually earmarked to a specific request."
+            if status == "confirmed" else
+            f"This ${payment.amount_minor / 100:.2f} {payment.currency} order is {status}; it has not been confirmed as available pool funds."
+        ),
+        status="completed" if status == "confirmed" else status,
+        timestamp=capture_entry.created_at if capture_entry else None,
         reference=f"PAYPAL-ORDER-{payment.order_id[:18]}",
-        badge="Direct to Pool",
+        badge="Pool credited" if status == "confirmed" else status.replace("_", " ").title(),
     )
-
-    # Stage 2: Human-Approved Need Allocation
-    need = session.scalar(
-        select(Need)
-        .join(AidRequest, Need.request_id == AidRequest.id)
-        .where(AidRequest.campaign_id == payment.campaign_id, Need.status == "approved")
-        .order_by(Need.id.desc())
-        .limit(1)
-    )
-    need_desc = need.description if need else "Infant formula & hygiene supplies for displaced flood families"
-    step2 = JourneyStep(
+    allocation_step = JourneyStep(
         stage=2,
-        title="Human-Approved Relief Need",
-        subtitle="Central Coordination & Gap Board",
-        description=f"Allocated to approved disaster relief need: '{need_desc}'. Zero administrative deductions.",
-        status="allocated",
-        timestamp=now()[:10],
-        reference=f"NEED-ALLOC-{(need.id[:8] if need else '00418')}",
-        badge="Human Authorized",
+        title="Pool allocation",
+        subtitle="Campaign-level accounting",
+        description="No need-level allocation is linked to this individual contribution. Check the campaign board for current pooled allocations.",
+        status="not_recorded",
+        reference="",
+        badge="Not attributed",
     )
-
-    # Stage 3: Instant Fast-Grant Disbursal via PayPal Payouts
-    payout = session.scalar(
-        select(Payout)
-        .where(Payout.campaign_id == payment.campaign_id)
-        .order_by(Payout.created_at.desc())
-        .limit(1)
-    )
-    payout_batch = payout.payout_batch_id if payout else "PP-SANDBOX-FASTGRANT-01"
-    recipient_label = (
-        f"{payout.recipient_name} ({payout.recipient_email})"
-        if payout
-        else "Capt. Michael Daniels (lead.responder@riverbend-relief.org)"
-    )
-    step3 = JourneyStep(
+    payout_step = JourneyStep(
         stage=3,
-        title="Instant Fast-Grant Disbursement",
-        subtitle=f"PayPal Payouts v1 • {payout.recipient_type.replace('_', ' ').title() if payout else 'Field Responder'}",
-        description=f"Transferred via PayPal Payout to certified responder {recipient_label} with instant settlement.",
-        status="disbursed",
-        timestamp=(payout.created_at[:10] if payout else now()[:10]),
-        reference=f"PAYOUT-{payout_batch[:16]}",
-        badge="Instant Payout",
+        title="Payout",
+        subtitle="Campaign-level fulfillment",
+        description="No payout is linked to this contribution. ReliefRail does not claim that this order funded a specific recipient or transfer.",
+        status="not_recorded",
+        reference="",
+        badge="Not attributed",
     )
-
-    # Stage 4: Vision AI Receipt Audit
-    audit = session.scalar(
-        select(ReceiptAudit)
-        .where(ReceiptAudit.campaign_id == payment.campaign_id)
-        .order_by(ReceiptAudit.created_at.desc())
-        .limit(1)
-    )
-    vendor_name = audit.vendor if audit else "Valley Community Pharmacy & Supply"
-    receipt_ref = audit.receipt_reference if audit else "RCPT-VCP-88321"
-
-    items_list = []
-    if audit and audit.items_json:
-        try:
-            items_list = json.loads(audit.items_json)
-        except Exception:
-            pass
-    if not items_list:
-        items_list = [
-            {"name": "Enfamil Infant Formula 28oz", "is_eligible": True},
-            {"name": "Huggies Diapers 32pk", "is_eligible": True},
-            {"name": "Pedialyte Electrolyte Solution 1L", "is_eligible": True},
-            {"name": "Baby Unscented Wipes", "is_eligible": True},
-        ]
-
-    step4 = JourneyStep(
+    receipt_step = JourneyStep(
         stage=4,
-        title="Multimodal Vision AI Store Audit",
-        subtitle=f"Store Merchant: {vendor_name}",
-        description=f"Physical receipt slip {receipt_ref} verified by multimodal vision AI. 100% humanitarian essentials confirmed with 0% unauthorized goods.",
-        status="audited",
-        timestamp=(audit.occurred_at if audit else now()[:10]),
-        reference=receipt_ref,
-        badge="100% Verified",
+        title="Receipt audit",
+        subtitle="Campaign-level reconciliation",
+        description="No receipt is linked to this contribution in the ledger.",
+        status="not_recorded",
+        reference="",
+        badge="Not attributed",
     )
-
-    timeline = [step1, step2, step3, step4]
-
-    # Generate Zero-PII Narrative
-    narrative = await generate_zero_pii_story(
-        amount_minor=payment.amount_minor,
-        currency=payment.currency,
-        need_description=need_desc,
-        vendor=vendor_name,
-        items=items_list,
-        payout_batch_id=payout_batch,
-    )
-
-    verified_items_names = [
-        it.get("name", "relief essential")
-        for it in items_list
-        if it.get("is_eligible", True)
-    ][:6]
-
-    zero_pii_cert = {
-        "zero_pii_verified": True,
-        "classification": "Level 0 Public Provenance",
-        "redactions_enforced": [
-            "Recipient Family Names",
-            "Exact Street Coordinates",
-            "Medical History Details",
-        ],
-        "compliance_standard": "Disaster Relief Humanitarian Privacy & Ledger Protocol v2",
-        "audit_hash": hashlib.sha256(
-            f"{clean_id}:{payment.amount_minor}:{payout_batch}:{receipt_ref}".encode()
-        ).hexdigest()[:16],
-    }
-
     return PayPalImpactJourneyOut(
         order_id=clean_id,
         capture_id=payment.capture_id,
         amount_minor=payment.amount_minor,
         currency=payment.currency,
-        campaign_name=camp_name,
-        status="confirmed",
-        confirmed_at=now()[:10],
-        timeline=timeline,
-        verified_items_funded=verified_items_names,
-        ai_impact_narrative=narrative,
-        zero_pii_certificate=zero_pii_cert,
+        campaign_name=c.name,
+        status=status,
+        confirmed_at=capture_entry.created_at if capture_entry else None,
+        timeline=[contribution_step, allocation_step, payout_step, receipt_step],
+        verified_items_funded=[],
+        ai_impact_narrative={
+            "supporter_letter": f"Your ${payment.amount_minor / 100:.2f} {payment.currency} contribution is {status} for the {c.name} pooled fund. Individual contributions are not assigned to specific recipients.",
+            "social_card": "",
+            "audit_summary": "Only the PayPal order and matching pool credit are reported here. Need, payout, and receipt events are shown only if they are actually linked; these records are not currently linked to individual contributions.",
+        },
+        privacy_note="This page exposes only the exact order's amount, status, and pool credit. It does not expose recipient names, emails, request narratives, or exact locations.",
     )
 
 

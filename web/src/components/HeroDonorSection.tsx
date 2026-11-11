@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import { CommunityResilienceBuffer, PoolBalance, SubscriptionResult } from '../types';
 import { HeartInHandsSvg, HandDrawnSparkle, HandDrawnCheck } from './OrganicIllustration';
@@ -46,13 +46,15 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastCapturedOrderId, setLastCapturedOrderId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const checkoutWindowRef = useRef<Window | null>(null);
 
   // Community Relief Guardian State
   const [resilienceBuffer, setResilienceBuffer] = useState<CommunityResilienceBuffer | null>(null);
   const [selectedGuardianTier, setSelectedGuardianTier] = useState<string>('Resilience Sentinel');
   const [guardianAmountMinor, setGuardianAmountMinor] = useState<number>(2500);
+  const [subscriberName, setSubscriberName] = useState('');
+  const [subscriberEmail, setSubscriberEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [isSimulatingGuardian, setIsSimulatingGuardian] = useState(false);
   const [subscriptionResult, setSubscriptionResult] = useState<SubscriptionResult | null>(null);
 
   const guardianTiers = [
@@ -60,20 +62,20 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
       name: 'Community Guardian',
       amountMinor: 1000,
       label: '$10 / mo',
-      impact: 'Guarantees clean drinking water & phone battery packs for 1 family',
+      impact: 'Helps maintain a shared reserve for water and charging supplies',
     },
     {
       name: 'Resilience Sentinel',
       amountMinor: 2500,
       label: '$25 / mo',
-      impact: 'Guarantees hypoallergenic infant formula & emergency pantry reserve',
+      impact: 'Helps maintain a shared reserve for family essentials',
       popular: true,
     },
     {
       name: 'Pool Anchor',
       amountMinor: 5000,
       label: '$50 / mo',
-      impact: 'Underwrites emergency generator capacity & sump pump drainage',
+      impact: 'Helps maintain a shared reserve for power and flood response',
     },
   ];
 
@@ -92,7 +94,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
   }, [campaignId]);
 
   const presetAmounts = [
-    { label: '$1.00', minor: 100, hint: 'Tested verified Sandbox' },
+    { label: '$1.00', minor: 100, hint: 'Sandbox checkout test amount' },
     { label: '$15.00', minor: 1500, hint: 'Clean drinking water pack' },
     { label: '$25.00', minor: 2500, hint: 'Emergency grocery parcel' },
     { label: '$50.00', minor: 5000, hint: 'Infant formula & hygiene kit' },
@@ -109,6 +111,9 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
       return;
     }
 
+    // Open synchronously in the click handler so browser popup blockers do not suppress PayPal.
+    const checkoutWindow = window.open('about:blank', '_blank');
+    checkoutWindowRef.current = checkoutWindow;
     setIsSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -116,17 +121,24 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
 
     try {
       const res = await api.createPayPalOrder(campaignId, effectiveMinor);
-      const approveLink = res.links.find((l) => l.rel === 'approve')?.href || '';
+      const approveLink =
+        res.links.find((l) => l.rel === 'payer-action')?.href ||
+        res.links.find((l) => l.rel === 'approve')?.href ||
+        '';
+      if (!approveLink) throw new Error('PayPal did not return an approval link. No payment was made.');
+      const approveUrl = new URL(approveLink);
+      if (approveUrl.hostname !== 'sandbox.paypal.com' && !approveUrl.hostname.endsWith('.sandbox.paypal.com')) {
+        throw new Error('PayPal returned an unexpected approval host.');
+      }
 
       setOrderResult({
         orderId: res.order_id,
-        approveUrl: approveLink,
+        approveUrl: approveUrl.href,
       });
-
-      if (approveLink) {
-        window.open(approveLink, '_blank', 'noopener,noreferrer');
-      }
+      if (checkoutWindow) checkoutWindow.location.href = approveUrl.href;
+      else window.location.assign(approveUrl.href);
     } catch (err: any) {
+      checkoutWindow?.close();
       setErrorMessage(err.message || 'Failed to initiate PayPal Sandbox contribution.');
     } finally {
       setIsSubmitting(false);
@@ -149,8 +161,34 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
     }
   };
 
+  useEffect(() => {
+    const handlePayPalReturn = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== checkoutWindowRef.current) return;
+      const data = event.data;
+      if (data?.source !== 'reliefrail:paypal' || !orderResult || data.orderId !== orderResult.orderId) return;
+
+      if (data.status === 'confirmed') {
+        // Recheck via the authenticated API before showing success in this tab.
+        void handleCaptureVerification(orderResult.orderId);
+      } else if (data.status === 'cancelled') {
+        setOrderResult(null);
+        setErrorMessage('PayPal checkout was cancelled. No contribution was captured.');
+      } else if (data.status === 'failed') {
+        setErrorMessage(data.message || 'PayPal returned, but capture confirmation is pending. Use Verify & Credit Ledger to retry safely.');
+      }
+    };
+
+    window.addEventListener('message', handlePayPalReturn);
+    return () => window.removeEventListener('message', handlePayPalReturn);
+  }, [orderResult, onRefreshPool]);
+
   const handleSubscribeGuardian = async () => {
     if (!campaignId) return;
+    if (!subscriberName.trim() || !subscriberEmail.includes('@')) {
+      setErrorMessage('Enter the sandbox subscriber name and email before continuing.');
+      return;
+    }
+    const checkoutWindow = window.open('about:blank', '_blank');
     setIsSubscribing(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -159,36 +197,24 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
       const res = await api.createSubscription(campaignId, {
         tier_name: selectedGuardianTier,
         amount_minor: guardianAmountMinor,
-        subscriber_name: 'Riverbend Valley Supporter',
-        subscriber_email: 'guardian@riverbend.community',
+        subscriber_name: subscriberName.trim(),
+        subscriber_email: subscriberEmail.trim(),
       });
       setSubscriptionResult(res);
-      setSuccessMessage(`🎉 ${res.message} PayPal Subscription Agreement: ${res.subscription_id}`);
+      setSuccessMessage(`PayPal subscription created with status ${res.status}. ${res.message}`);
       await loadBuffer();
       onRefreshPool();
-      if (res.approval_url) {
-        window.open(res.approval_url, '_blank', 'noopener,noreferrer');
+      const approvalUrl = new URL(res.approval_url);
+      if (approvalUrl.hostname !== 'sandbox.paypal.com' && !approvalUrl.hostname.endsWith('.sandbox.paypal.com')) {
+        throw new Error('PayPal returned an unexpected approval host.');
       }
+      if (checkoutWindow) checkoutWindow.location.href = approvalUrl.href;
+      else window.location.assign(approvalUrl.href);
     } catch (err: any) {
+      checkoutWindow?.close();
       setErrorMessage(err.message || 'Failed to initialize PayPal Subscription agreement.');
     } finally {
       setIsSubscribing(false);
-    }
-  };
-
-  const handleSimulateGuardian = async () => {
-    if (!campaignId) return;
-    setIsSimulatingGuardian(true);
-    setErrorMessage(null);
-    try {
-      const res = await api.simulateGuardian(campaignId, 'Resilience Sentinel', 2500, 'Rotary Club of Riverbend');
-      setResilienceBuffer(res.buffer);
-      setSuccessMessage('⚡ Simulated new PayPal Guardian joining the pool (+ $25.00/mo)! Community Resilience Buffer strengthened.');
-      onRefreshPool();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to simulate guardian.');
-    } finally {
-      setIsSimulatingGuardian(false);
     }
   };
 
@@ -215,14 +241,14 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
 
             <div className="space-y-4">
               <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-slate-900 leading-[1.15]">
-                Immediate help,{' '}
+                Coordinate emergency aid with{' '}
                 <span className="organic-underline font-medium text-brand-600">
-                  funded before
+                  a clear funding trail
                 </span>{' '}
-                it is promised.
+                for each approved need.
               </h1>
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl">
-                When flash floods hit local families, community organizers allocate urgent aid from a verified, pre-funded emergency pool. Every purchase is tracked, every need is reviewed by humans, and donor dollars go straight to accountable essentials.
+                During a flood response, organizers review needs and allocate from the shared campaign pool. Contributions are pooled, purchases require their own ledger and receipt records, and people make aid decisions.
               </p>
             </div>
 
@@ -247,7 +273,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                 <div className="hidden sm:block text-right">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-medium border border-white/30">
                     <ShieldCheck className="w-3.5 h-3.5 text-mint-300" />
-                    Verified Organization
+                    Illustrative demo
                   </span>
                 </div>
               </div>
@@ -268,10 +294,10 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
               <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-soft space-y-1">
                 <div className="text-mint-700 font-serif font-semibold text-sm flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-mint-600" />
-                  <span>Privacy First</span>
+                  <span>Limited public detail</span>
                 </div>
                 <p className="text-xs text-slate-500 leading-snug">
-                  No recipient names, stories, or addresses exposed to the public.
+                  Donor views show pooled totals instead of household-level request details.
                 </p>
               </div>
 
@@ -281,7 +307,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                   <span>Ledger Provenance</span>
                 </div>
                 <p className="text-xs text-slate-500 leading-snug">
-                  Funds only spendable after cryptographically verified capture.
+                  Pool credits require a PayPal-confirmed capture.
                 </p>
               </div>
             </div>
@@ -400,7 +426,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4 text-brand-600" />
                       <span className="text-xs font-bold uppercase tracking-wider text-brand-800">
-                        Community Resilience Buffer AI
+                        Community Pool Snapshot
                       </span>
                     </div>
                     <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-mint-100 text-mint-800 border border-mint-200">
@@ -422,28 +448,16 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                       <span className="text-base font-bold text-slate-900">{resilienceBuffer.total_active_guardians} active</span>
                     </div>
                     <div className="p-2.5 rounded-2xl bg-white/70 border border-slate-200/80">
-                      <span className="text-[10px] font-semibold text-slate-400 block uppercase">Guaranteed</span>
-                      <span className="text-base font-bold text-brand-700">{resilienceBuffer.monthly_runrate_formatted}/mo</span>
+                      <span className="text-[10px] font-semibold text-slate-400 block uppercase">Monthly run rate</span>
+                        <span className="text-base font-bold text-brand-700">{resilienceBuffer.monthly_runrate_formatted}/mo projected</span>
                     </div>
                     <div className="p-2.5 rounded-2xl bg-white/70 border border-slate-200/80">
                       <span className="text-[10px] font-semibold text-slate-400 block uppercase">Runway</span>
                       <span className="text-base font-bold text-mint-700">{resilienceBuffer.autonomous_runway_days} days</span>
                     </div>
                   </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">{resilienceBuffer.estimation_note}</p>
 
-                  {/* 1-Click Simulate Guardian Button for Judges */}
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400 font-medium">Judge Sandbox Feature</span>
-                    <button
-                      type="button"
-                      disabled={isSimulatingGuardian}
-                      onClick={handleSimulateGuardian}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 hover:text-brand-800 bg-white/80 hover:bg-white px-2.5 py-1 rounded-xl border border-sky-200 shadow-xs transition-colors disabled:opacity-50"
-                    >
-                      <Zap className="w-3 h-3 text-amber-500" />
-                      <span>{isSimulatingGuardian ? 'Simulating...' : '⚡ Simulate +1 Guardian'}</span>
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -541,6 +555,20 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                       );
                     })}
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Subscriber name
+                      <input value={subscriberName} onChange={(e) => setSubscriberName(e.target.value)}
+                        autoComplete="name" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-normal"
+                        placeholder="Sandbox test buyer" />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Subscriber email
+                      <input type="email" value={subscriberEmail} onChange={(e) => setSubscriberEmail(e.target.value)}
+                        autoComplete="email" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-normal"
+                        placeholder="buyer@example.test" />
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -561,11 +589,11 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                   {onOpenJourney && donationMode === 'one_time' && (
                     <button
                       type="button"
-                      onClick={() => onOpenJourney(lastCapturedOrderId || '84Y94709MX0315008')}
+                      onClick={() => onOpenJourney(lastCapturedOrderId || undefined)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm transition-colors"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-sky-200" />
-                      <span>Trace Your PayPal Impact Journey Live &rarr;</span>
+                      <span>View this order's status &rarr;</span>
                     </button>
                   )}
                 </div>
@@ -584,7 +612,7 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
                   </div>
 
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Approve the payment in the PayPal Sandbox window, then click confirm capture below:
+                    Approve the payment in PayPal Sandbox. ReliefRail will capture it after PayPal returns here. If the return fails, use the safe verification fallback below:
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -637,16 +665,16 @@ export const HeroDonorSection: React.FC<HeroDonorSectionProps> = ({
               {/* PayPal Sandbox Notice */}
               <div className="pt-1 text-center space-y-1">
                 <p className="text-[11px] text-slate-500 font-medium">
-                  {donationMode === 'one_time' ? 'Instant ledger posting &bull; Zero PII storage &bull; Verified via PayPal' : 'Continuous anchor pool &bull; Cancel anytime &bull; Powered by PayPal Subscriptions v1'}
+                  {donationMode === 'one_time' ? 'Campaign pool credited only after PayPal capture confirmation' : 'Monthly PayPal subscription; counted after buyer approval and provider confirmation'}
                 </p>
                 {onOpenJourney && (
                   <button
                     type="button"
-                    onClick={() => onOpenJourney('84Y94709MX0315008')}
+                    onClick={() => onOpenJourney(undefined)}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-800 transition-colors pt-1"
                   >
                     <Zap className="w-3.5 h-3.5 text-[#0070BA]" />
-                    <span>View a Sample Live PayPal Transaction Impact Journey &rarr;</span>
+                    <span>Inspect a PayPal order status &rarr;</span>
                   </button>
                 )}
               </div>

@@ -133,7 +133,9 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
       setSelectedRequestId(res.duplicate_request_id);
       setStatusMessage({
         type: 'warning',
-        text: '⚡ Simulated frantic SMS from 104 Riverside Dr. Anti-Fraud Radar detected duplicate household claim!',
+        text: res.reused
+          ? 'Reopened the existing fictional pair. Similarity is shown for coordinator review.'
+          : 'Added a fictional request pair. Similarity is shown for coordinator review.',
       });
     } catch (err: any) {
       setStatusMessage({
@@ -254,8 +256,8 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
             Request Triage &amp; Semantic Deduplication
           </h2>
           <p className="text-sm text-slate-500 max-w-2xl mt-1">
-            Transform emotional intake narratives into verified, auditable aid plans while
-            the Anti-Fraud Radar continuously cross-checks incoming claims to prevent duplicate payouts.
+            AI drafts suggested needs for human review. Similarity signals can surface overlapping
+            requests; they do not determine fraud or eligibility.
           </p>
         </div>
 
@@ -268,7 +270,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
           title="Simulate a duplicate crisis intake from 104 Riverside Dr to test the Anti-Fraud Radar"
         >
           <Zap className="w-4 h-4 text-amber-600" />
-          <span>{isSimulatingDuplicate ? 'Simulating Influx...' : '⚡ Test Duplicate Influx (104 Riverside Dr)'}</span>
+          <span>{isSimulatingDuplicate ? 'Adding fictional pair...' : '⚡ Test Synthetic Duplicate Pair'}</span>
         </button>
       </div>
 
@@ -368,6 +370,11 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                           ID: {r.id.substring(0, 8)}
                         </span>
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {r.is_synthetic && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+                              Synthetic demo
+                            </span>
+                          )}
                           {/* Radar duplicate warning badge */}
                           {hasDuplicate && !isMerged && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
@@ -426,7 +433,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                           </span>
                         </div>
                         <h4 className="font-serif text-lg font-bold text-amber-950">
-                          Potential Duplicate Disbursement Detected
+                          Possible Duplicate Requests Detected
                         </h4>
                       </div>
                     </div>
@@ -503,7 +510,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                   {/* 1-Click Merge Action Button */}
                   <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <p className="text-xs text-amber-900/80 font-medium">
-                      Consolidate duplicate claims into a single approved need to protect the emergency pool.
+                      Review both claims. Merge only after confirming they concern the same household or incident.
                     </p>
                     <button
                       type="button"
@@ -512,7 +519,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                       className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all transform active:scale-95 disabled:opacity-50 whitespace-nowrap"
                     >
                       <GitMerge className="w-4 h-4" />
-                      <span>{isMerging ? 'Merging...' : `Merge Requests (Save $${(topMatch.potential_savings_minor / 100).toFixed(2)})`}</span>
+                      <span>{isMerging ? 'Merging...' : 'Merge Requests'}</span>
                     </button>
                   </div>
                 </div>
@@ -672,7 +679,7 @@ export const AiTriageReview: React.FC<AiTriageReviewProps> = ({
                       <div className="p-4 rounded-3xl bg-amber-50/60 border border-amber-200/80 space-y-2">
                         <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                           <AlertTriangle className="w-4 h-4 text-amber-600" />
-                          <span>Highlighted Uncertainties (No Hallucinations)</span>
+                          <span>Uncertainties to verify</span>
                         </span>
                         <ul className="list-disc list-inside text-xs text-amber-800/80 space-y-1 pl-1">
                           {activeDraft.uncertainties.map((u, idx) => (

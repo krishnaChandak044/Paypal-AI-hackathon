@@ -39,7 +39,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
   const [payoutsList, setPayoutsList] = useState<PayoutItem[]>([]);
   const [reserveAmount, setReserveAmount] = useState<string>('');
   const [reserveRef, setReserveRef] = useState<string>('');
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   const loadPayouts = async () => {
@@ -63,7 +63,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
   const totalReserved = needs.reduce((sum, n) => sum + n.reserved_minor, 0);
   const totalSpent = needs.reduce((sum, n) => sum + n.spent_minor, 0);
   const totalUnmet = needs.reduce((sum, n) => sum + n.unmet_minor, 0);
-  const totalDisbursedViaPayouts = payoutsList.reduce((sum, p) => sum + p.amount_minor, 0);
+  const totalDisbursedViaPayouts = payoutsList.filter((p) => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount_minor, 0);
 
   const handleReserve = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,11 +98,39 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
 
   const handlePayoutSuccess = (payout: PayoutItem) => {
     setActionMessage({
-      type: 'success',
-      text: `Disbursed $${(payout.amount_minor / 100).toFixed(2)} via PayPal Payout to ${payout.recipient_email} (Batch #${payout.payout_batch_id}).`,
+      type: payout.status === 'FAILED' ? 'error' : payout.status === 'SUCCESS' ? 'success' : 'info',
+      text: payout.status === 'SUCCESS'
+        ? `PayPal confirmed a $${(payout.amount_minor / 100).toFixed(2)} payout (Batch #${payout.payout_batch_id}).`
+        : payout.status === 'FAILED'
+          ? `PayPal reported the $${(payout.amount_minor / 100).toFixed(2)} payout failed; the pool reservation was released.`
+          : `PayPal payout status is ${payout.status}. The amount remains reserved pending reconciliation.`,
     });
     loadPayouts();
     onRefresh();
+  };
+
+  const refreshPayoutStatus = async (payout: PayoutItem) => {
+    setIsActionLoading(true);
+    setActionMessage(null);
+    try {
+      const updated = payout.payout_batch_id
+        ? await api.reconcilePayout(payout.payout_id)
+        : await api.retryPayout(payout.payout_id);
+      setPayoutsList((items) => items.map((item) => item.payout_id === payout.payout_id ? updated : item));
+      setActionMessage({
+        type: updated.status === 'SUCCESS' ? 'success' : updated.status === 'FAILED' ? 'error' : 'info',
+        text: updated.status === 'SUCCESS'
+          ? 'PayPal confirmed this payout. The spend is recorded in the ledger.'
+          : updated.status === 'FAILED'
+            ? 'PayPal confirmed failure. The reserved amount has been released.'
+            : `Provider status: ${updated.status}. The amount remains reserved.`,
+      });
+      onRefresh();
+    } catch (err: any) {
+      setActionMessage({ type: 'error', text: err.message || 'Could not refresh the PayPal payout status.' });
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   return (
@@ -194,11 +222,15 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
           className={`p-4 rounded-2xl text-xs font-medium flex items-center gap-2 ${
             actionMessage.type === 'success'
               ? 'bg-mint-50 border border-mint-200 text-mint-900'
-              : 'bg-red-50 border border-red-200 text-red-900'
+              : actionMessage.type === 'info'
+                ? 'bg-sky-50 border border-sky-200 text-sky-900'
+                : 'bg-red-50 border border-red-200 text-red-900'
           }`}
         >
           {actionMessage.type === 'success' ? (
             <HandDrawnCheck className="w-4 h-4 text-mint-600" />
+          ) : actionMessage.type === 'info' ? (
+            <Clock className="w-4 h-4 text-sky-600" />
           ) : (
             <AlertCircle className="w-4 h-4 text-red-600" />
           )}
@@ -240,7 +272,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
                 }`}
               >
                 <Map className="w-3.5 h-3.5 text-brand-500" />
-                <span>Sector Need Map (Zero-PII)</span>
+                <span>Synthetic scenario map</span>
               </button>
             </div>
           </div>
@@ -439,7 +471,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
               Direct Emergency Grants Disbursal Log
             </h3>
             <p className="text-xs text-slate-500 max-w-2xl mt-1">
-              Real-time settlement of emergency cash stipends sent directly to field volunteer captains, local hardware stores, and displaced families via the PayPal Payouts API.
+              Sandbox payout requests are tracked by provider status. Only a PayPal-confirmed payout item is counted as disbursed.
             </p>
           </div>
 
@@ -457,9 +489,9 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
         {payoutsList.length === 0 ? (
           <div className="py-10 text-center text-xs text-slate-400 space-y-2">
             <Send className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="font-bold text-slate-700">No PayPal Fast-Grants Disbursed Yet</p>
+              <p className="font-bold text-slate-700">No PayPal payout requests yet</p>
             <p className="max-w-md mx-auto">
-              Click &ldquo;PayPal Payout&rdquo; on any approved relief need above to disburse immediate funds to a responder or certified supplier.
+              Create a sandbox payout request from an approved need. Pending requests remain reserved until provider confirmation.
             </p>
           </div>
         ) : (
@@ -473,6 +505,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
                   <th className="py-2.5 font-bold">Relief Purpose</th>
                   <th className="py-2.5 text-right font-bold">Amount</th>
                   <th className="py-2.5 text-center font-bold">Status</th>
+                  <th className="py-2.5 text-center font-bold">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -492,7 +525,7 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
                       </span>
                     </td>
                     <td className="py-3 font-mono text-slate-600 text-[11px]">
-                      {p.payout_batch_id}
+                      {p.payout_batch_id || 'Awaiting PayPal batch'}
                     </td>
                     <td className="py-3 text-slate-600 max-w-xs truncate" title={p.purpose_note}>
                       {p.purpose_note}
@@ -501,9 +534,17 @@ export const CoordinationBoard: React.FC<CoordinationBoardProps> = ({
                       ${(p.amount_minor / 100).toFixed(2)}
                     </td>
                     <td className="py-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 border border-mint-200 text-[10px] font-bold">
-                        ✓ {p.status}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.status === 'SUCCESS' ? 'bg-mint-50 text-mint-700 border border-mint-200' : p.status === 'FAILED' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                        {p.status}
                       </span>
+                    </td>
+                    <td className="py-3 text-center">
+                      {['PENDING', 'RECONCILIATION_REQUIRED', 'LEGACY_UNVERIFIED'].includes(p.status) && (
+                        <button type="button" disabled={isActionLoading} onClick={() => refreshPayoutStatus(p)}
+                          className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-semibold text-brand-700 hover:bg-sky-50 disabled:opacity-50">
+                          {p.payout_batch_id ? 'Check PayPal' : 'Retry safely'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

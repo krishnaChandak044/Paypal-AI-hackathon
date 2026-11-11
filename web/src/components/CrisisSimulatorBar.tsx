@@ -24,7 +24,7 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
     setStatusMessage(null);
     try {
       const res = await api.simulateCrisis(campaignId, 'flash_flood_wave');
-      setStatusMessage('Injected 3 urgent flood requests with approved needs!');
+      setStatusMessage(`Added ${res.items_created} fictional request(s); ${res.items_reused} reused. Review and approve needs manually.`);
       onCrisisInjected();
       setTimeout(() => setStatusMessage(null), 5000);
     } catch (err: any) {
@@ -41,10 +41,10 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0070BA]/10 text-[#0070BA] font-bold text-[11px] border border-[#0070BA]/20">
             <Zap className="w-3.5 h-3.5" />
-            <span>Judge Showcase Mode</span>
+            <span>Synthetic Demo</span>
           </div>
           <span className="text-slate-700 font-medium hidden sm:inline">
-            Test the complete 360° closed-loop disaster relief rail:
+            Explore fictional workflows; provider states are shown as they are verified:
           </span>
         </div>
 
@@ -55,7 +55,7 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             disabled={isInjecting}
             onClick={handleSimulateCrisis}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white hover:bg-sky-50 text-brand-700 border border-sky-300 shadow-sm transition-all text-[11px] active:scale-95"
-            title="Inject 3 realistic disaster relief requests"
+            title="Add three clearly labelled fictional requests to the review queue"
           >
             <Waves className="w-3 h-3 text-brand-500" />
             <span>{isInjecting ? 'Injecting...' : '1. Inject Influx'}</span>
@@ -99,7 +99,7 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
             type="button"
             onClick={() => onNavigateTab('supporter')}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-brand-800 border border-sky-300 shadow-sm text-[11px]"
-            title="Inspect Community Relief Guardian Recurring Pools & Zero-PII Map"
+            title="Inspect community subscription planning and synthetic scenario map"
           >
             <span>5. Guardian Buffer &amp; Map</span>
           </button>
@@ -108,9 +108,9 @@ export const CrisisSimulatorBar: React.FC<CrisisSimulatorBarProps> = ({
 
           <button
             type="button"
-            onClick={() => onOpenJourney && onOpenJourney('84Y94709MX0315008')}
+            onClick={() => onOpenJourney && onOpenJourney()}
             className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-gradient-to-r from-[#0070BA] to-brand-600 hover:from-[#005ea6] hover:to-brand-700 text-white shadow-sm text-[11px] font-bold transition-all active:scale-95"
-            title="Inspect Live PayPal Transaction Impact Journey & Zero-PII AI Story"
+            title="Inspect the PayPal order record and shared pool status"
           >
             <Sparkles className="w-3.5 h-3.5 text-sky-200" />
             <span>6. Trace PayPal Journey</span>

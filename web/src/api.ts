@@ -20,7 +20,7 @@ import {
 const TOKEN_KEY = 'reliefrail_auth_token';
 
 export function getAuthToken(): string {
-  return localStorage.getItem(TOKEN_KEY) || 'demo-coordinator-token';
+  return localStorage.getItem(TOKEN_KEY) || '';
 }
 
 export function setAuthToken(token: string): void {
@@ -245,10 +245,19 @@ export const api = {
     return request(`/campaigns/${campaignId}/payouts`);
   },
 
+  async reconcilePayout(payoutId: string): Promise<any> {
+    return request(`/payouts/${payoutId}/reconcile`, { method: 'POST' });
+  },
+
+  async retryPayout(payoutId: string): Promise<any> {
+    return request(`/payouts/${payoutId}/retry`, { method: 'POST' });
+  },
+
   async simulateCrisis(campaignId: string, scenario: string = 'flash_flood_wave'): Promise<{
     status: string;
     scenario: string;
     items_created: number;
+    items_reused: number;
     details: any[];
   }> {
     return request(`/campaigns/${campaignId}/simulate-crisis`, {
@@ -257,7 +266,7 @@ export const api = {
     });
   },
 
-  // Live PayPal Transaction Impact Journey & Zero-PII Storyteller
+  // PayPal order and shared-pool record journey
   async getPayPalOrderJourney(orderId: string): Promise<any> {
     const res = await fetch(`/paypal/orders/${encodeURIComponent(orderId)}/journey`);
     if (!res.ok) {
@@ -328,6 +337,7 @@ export const api = {
     duplicate_request_id: string;
     duplicate_message: string;
     potential_savings_minor: number;
+    reused: boolean;
   }> {
     return request(`/campaigns/${campaignId}/requests/simulate-duplicate`, {
       method: 'POST',
@@ -355,23 +365,7 @@ export const api = {
     });
   },
 
-  async simulateGuardian(
-    campaignId: string,
-    tierName: string = 'Resilience Sentinel',
-    amountMinor: number = 2500,
-    donorName: string = 'Riverbend Valley Neighbor'
-  ): Promise<{ status: string; buffer: CommunityResilienceBuffer }> {
-    return request(`/campaigns/${campaignId}/subscriptions/simulate-guardian`, {
-      method: 'POST',
-      body: JSON.stringify({
-        tier_name: tierName,
-        amount_minor: amountMinor,
-        donor_name: donorName,
-      }),
-    });
-  },
-
-  // Anonymized Geographic Need Cluster Map (Zero-PII Heatmap)
+  // Synthetic geographic scenario map
   async getGeoClusters(campaignId: string): Promise<GeoClustersResponse> {
     return request(`/campaigns/${campaignId}/geo/clusters`);
   },

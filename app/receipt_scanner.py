@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from .models import Need, ReceiptAudit
@@ -247,11 +248,19 @@ async def extract_receipt_from_image_or_sample(
     sample_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Extracts structured line items from either a multimodal vision model or a realistic scenario sample."""
-    if sample_id and sample_id in SAMPLE_RECEIPTS:
-        return SAMPLE_RECEIPTS[sample_id]
+    if sample_id:
+        if sample_id not in SAMPLE_RECEIPTS:
+            raise HTTPException(status_code=422, detail="Unknown synthetic receipt sample")
+        return {**SAMPLE_RECEIPTS[sample_id], "_extraction_source": "synthetic_sample"}
+
+    if not image_base64:
+        raise HTTPException(status_code=422, detail="Upload a receipt image or choose a labelled synthetic sample")
 
     api_key = os.getenv("META_MODEL_API_KEY")
-    if api_key and image_base64:
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Meta receipt extraction is not configured")
+
+    if image_base64:
         # Multimodal Vision Prompt to Meta API
         prompt = (
             "You are a disaster relief receipt forensic auditor. Analyze this receipt photo. "
@@ -292,10 +301,19 @@ async def extract_receipt_from_image_or_sample(
                     # Extract JSON substring
                     match = re.search(r"\{.*\}", content, re.DOTALL)
                     if match:
-                        return json.loads(match.group(0))
-        except Exception:
-            pass  # Fall through to synthetic analysis
+                        result = json.loads(match.group(0))
+                        if (
+                            isinstance(result, dict)
+                            and isinstance(result.get("items"), list)
+                            and result.get("vendor")
+                            and result.get("receipt_reference")
+                            and result.get("occurred_at")
+                            and isinstance(result.get("total_minor"), int)
+                        ):
+                            result["_extraction_source"] = "meta_vision"
+                            return result
+        except (httpx.HTTPError, KeyError, ValueError, TypeError):
+            pass
 
-    # Fallback to smart heuristic sample if vision API is offline or sample requested
-    return SAMPLE_RECEIPTS.get(sample_id or "sample_infant_grocery", SAMPLE_RECEIPTS["sample_infant_grocery"])
+    raise HTTPException(status_code=502, detail="Receipt extraction failed; no sample data was substituted")
 

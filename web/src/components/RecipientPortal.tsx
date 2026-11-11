@@ -166,7 +166,7 @@ export const RecipientPortal: React.FC<RecipientPortalProps> = ({ campaignId }) 
               <div className="p-4 rounded-2xl bg-mint-50/70 border border-mint-200 text-[11px] text-mint-800 flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-mint-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold block">Privacy Guaranteed</span>
+                  <span className="font-bold block">Privacy focused</span>
                   Your personal details are never published to donors. Only authorized relief
                   case workers receive this information to coordinate delivery.
                 </div>

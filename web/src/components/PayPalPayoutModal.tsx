@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../api';
 import { BoardNeed, PayoutItem } from '../types';
-import { HandDrawnCheck } from './OrganicIllustration';
 import {
   CreditCard,
   Send,
@@ -30,8 +29,8 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [recipientEmail, setRecipientEmail] = useState('lead.responder@riverbend-relief.org');
-  const [recipientName, setRecipientName] = useState('Capt. Michael Daniels');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [recipientName, setRecipientName] = useState('');
   const [recipientType, setRecipientType] = useState<'volunteer_lead' | 'certified_supplier' | 'displaced_family'>('volunteer_lead');
   
   // Default to remaining unmet amount
@@ -42,26 +41,6 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [payoutResult, setPayoutResult] = useState<PayoutItem | null>(null);
-
-  // Quick 1-Click Test Personas for Judges
-  const selectPersona = (type: 'volunteer' | 'supplier' | 'family') => {
-    if (type === 'volunteer') {
-      setRecipientName('Capt. Michael Daniels');
-      setRecipientEmail('lead.responder@riverbend-relief.org');
-      setRecipientType('volunteer_lead');
-      setPurposeNote(`Volunteer field logistics stipend for: ${need.description}`);
-    } else if (type === 'supplier') {
-      setRecipientName('Pine Creek Hardware & Supply');
-      setRecipientEmail('payouts@pinecreeksupply.com');
-      setRecipientType('certified_supplier');
-      setPurposeNote(`Vendor direct invoice settlement for: ${need.description}`);
-    } else {
-      setRecipientName('Elena & Marco Rostova');
-      setRecipientEmail('elena.rostova@fastrelief.org');
-      setRecipientType('displaced_family');
-      setPurposeNote(`Displaced family emergency stipend for: ${need.description}`);
-    }
-  };
 
   const handleDisburse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,8 +99,8 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
               <span className="text-xs font-bold uppercase tracking-wider text-[#0070BA]">
                 PayPal Payouts v1 &bull; Outflow Rail
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 border border-mint-200">
-                Instant Settlement
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                Sandbox • provider status pending
               </span>
             </div>
             <h3 className="font-serif text-xl font-bold text-slate-900">
@@ -141,18 +120,18 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
         </div>
 
         {payoutResult ? (
-          /* Success Screen */
+          /* Provider result screen */
           <div className="space-y-5 text-center py-4">
-            <div className="w-14 h-14 rounded-full bg-mint-100 text-mint-600 flex items-center justify-center mx-auto border border-mint-200">
-              <CheckCircle2 className="w-8 h-8" />
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto border ${payoutResult.status === 'SUCCESS' ? 'bg-mint-100 text-mint-600 border-mint-200' : payoutResult.status === 'FAILED' ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-amber-100 text-amber-600 border-amber-200'}`}>
+              {payoutResult.status === 'SUCCESS' ? <CheckCircle2 className="w-8 h-8" /> : <AlertTriangle className="w-8 h-8" />}
             </div>
 
             <div className="space-y-1">
               <h4 className="font-serif text-lg font-bold text-slate-900">
-                Disbursement Completed Successfully!
+                {payoutResult.status === 'SUCCESS' ? 'PayPal confirmed the payout' : payoutResult.status === 'FAILED' ? 'PayPal reported the payout failed' : 'Payout is awaiting confirmation'}
               </h4>
               <p className="text-xs text-slate-500">
-                Funds have been transferred to the recipient PayPal account and double-entry debited from the relief pool.
+                {payoutResult.status === 'SUCCESS' ? 'PayPal confirmed the payout item. The pool ledger records the spend.' : payoutResult.status === 'FAILED' ? 'The reserved pool amount was released after PayPal reported failure.' : 'The pool amount remains reserved while ReliefRail checks PayPal. Do not retry until its status is reconciled.'}
               </p>
             </div>
 
@@ -166,7 +145,7 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
                 <span className="text-slate-800">{payoutResult.recipient_email}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Disbursed Amount:</span>
+                <span className="text-slate-400">Amount:</span>
                 <span className="font-bold text-mint-700">${(payoutResult.amount_minor / 100).toFixed(2)} {payoutResult.currency}</span>
               </div>
               <div className="flex justify-between">
@@ -175,7 +154,7 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Ledger Entry:</span>
-                <span className="text-slate-600">#{payoutResult.ledger_id.substring(0, 10)}</span>
+                <span className="text-slate-600">{payoutResult.ledger_id ? `#${payoutResult.ledger_id.substring(0, 10)}` : 'Reserved pending provider confirmation'}</span>
               </div>
             </div>
 
@@ -190,36 +169,6 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
         ) : (
           /* Disbursal Form */
           <form onSubmit={handleDisburse} className="space-y-4">
-            {/* 1-Click Judge Autofill Persona Pills */}
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-bold text-slate-600 block">
-                1-Click Test Autofill for Judges:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => selectPersona('volunteer')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-700 hover:text-brand-700 text-[11px] font-semibold border border-slate-200 transition-colors"
-                >
-                  🚒 Field Captain
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectPersona('supplier')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-700 hover:text-brand-700 text-[11px] font-semibold border border-slate-200 transition-colors"
-                >
-                  🏪 Local Hardware Co.
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectPersona('family')}
-                  className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-700 hover:text-brand-700 text-[11px] font-semibold border border-slate-200 transition-colors"
-                >
-                  🤝 Displaced Household
-                </button>
-              </div>
-            </div>
-
             {/* Recipient Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -281,7 +230,7 @@ export const PayPalPayoutModal: React.FC<PayPalPayoutModalProps> = ({
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 >
                   <option value="volunteer_lead">Volunteer Responder / Field Captain</option>
-                  <option value="certified_supplier">Local Merchant / Essential Supplier</option>
+                  <option value="certified_supplier">Local merchant / essential supplier</option>
                   <option value="displaced_family">Displaced Household / Direct Aid</option>
                 </select>
               </div>
